@@ -13,6 +13,7 @@ processing.
 | Whisper model | XDG data directory | Until manually removed |
 | Portal restore token | Mode-`0600` XDG configuration file | Replaced after successful restoration |
 | Diagnostics | XDG state directory | Rotating local files |
+| Top-bar status | Session D-Bus and GNOME Shell memory | Application session |
 
 Audio and transcripts must never be written to temporary files. Logs may record
 state transitions, timings, byte counts, paths, and error categories, but not
@@ -42,6 +43,15 @@ GNOME presents and owns permission decisions. If keyboard permission is denied
 or revoked, SpeakText degrades to clipboard recovery rather than bypassing the
 desktop security model.
 
+## Top-bar interface
+
+The GNOME Shell extension uses the session bus only for lifecycle controls and
+content-free status. The interface exposes the state name, a short status or
+error message, and whether **Copy last transcript** is available. The copy
+operation runs inside the application; neither the D-Bus reply nor the Shell
+extension contains the transcript. Microphone PCM and recognised text are
+never sent to GNOME Shell.
+
 ## Wayland limitations
 
 SpeakText cannot inspect which application or control owns focus. The transcript
@@ -58,4 +68,3 @@ Before sharing diagnostics, review them for paths or environmental information.
 Do not attach microphone recordings, clipboard captures, configuration files
 containing restore tokens, model files, or dictated text unless deliberately
 required and safely redacted.
-

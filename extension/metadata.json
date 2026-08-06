@@ -1,0 +1,8 @@
+{
+  "uuid": "speaktext@local",
+  "name": "SpeakText Indicator",
+  "description": "Show SpeakText dictation status and controls in the GNOME top bar.",
+  "shell-version": ["50"],
+  "version-name": "0.1.0"
+}
+

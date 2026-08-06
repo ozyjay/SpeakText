@@ -14,6 +14,7 @@ from gi.repository import Adw, Gio, GLib, Gtk  # noqa: E402
 from .audio import AudioCapture
 from .config import SettingsStore
 from .constants import APP_ID, APP_NAME, MODEL_PATH, SHORTCUT_TRIGGER, worker_path
+from .control import ControlService
 from .coordinator import DictationCoordinator, DictationState
 from .injector import ClipboardFallback, TextInjector
 from .logging_config import configure_logging
@@ -42,7 +43,7 @@ class SpeakTextApplication(Adw.Application):
         self.shortcut_portal: GlobalShortcutPortal | None = None
         self.keyboard_portal: KeyboardPortal | None = None
         self.coordinator: DictationCoordinator | None = None
-        self._initialised = False
+        self.control_service: ControlService | None = None
         self._model_task: asyncio.Task[None] | None = None
         self._shortcut_failed = False
 
@@ -56,13 +57,21 @@ class SpeakTextApplication(Adw.Application):
         quit_action.connect("activate", lambda *_args: self.quit())
         self.add_action(quit_action)
 
+        connection = self.get_dbus_connection()
+        if connection is not None:
+            self.control_service = ControlService(
+                connection,
+                self.activate,
+                self._copy_last_transcript,
+                self.quit,
+            )
+
+        GLib.idle_add(self._initialise_services)
+
     def do_activate(self) -> None:
         if self.window is None:
             self.window = self._build_window()
         self.window.present()
-        if not self._initialised:
-            self._initialised = True
-            GLib.idle_add(self._initialise_services)
 
     def _build_window(self) -> Adw.ApplicationWindow:
         window = Adw.ApplicationWindow(application=self)
@@ -258,12 +267,13 @@ class SpeakTextApplication(Adw.Application):
         self.settings_store.save(self.settings)
 
     def _set_status(self, state: DictationState, message: str) -> None:
+        can_copy = bool(self.coordinator and self.coordinator.last_transcript)
         if self.status_label:
             self.status_label.set_label(message)
         if self.copy_button:
-            self.copy_button.set_sensitive(
-                bool(self.coordinator and self.coordinator.last_transcript)
-            )
+            self.copy_button.set_sensitive(can_copy)
+        if self.control_service:
+            self.control_service.update(state.value, message, can_copy)
 
         if state in {
             DictationState.RECORDING,
@@ -303,17 +313,24 @@ class SpeakTextApplication(Adw.Application):
         if self.coordinator is None:
             self._model_task = self.loop.create_task(self._prepare_model_and_worker())
 
-    def _copy_last_transcript(self) -> None:
+    def _copy_last_transcript(self) -> bool:
         if not self.coordinator or not self.coordinator.last_transcript:
-            return
+            return False
         try:
             ClipboardFallback().copy(self.coordinator.last_transcript)
         except Exception as error:
             self._setup_error(f"Could not access the clipboard: {error}")
-            return
+            return False
         self.coordinator.copied_last_transcript()
         if self.copy_button:
             self.copy_button.set_sensitive(False)
+        if self.control_service:
+            self.control_service.update(
+                self.coordinator.state.value,
+                "Transcript copied",
+                False,
+            )
+        return True
 
     def _notify(self, notification_id: str, title: str, body: str) -> None:
         notification = Gio.Notification.new(title)
@@ -340,6 +357,9 @@ class SpeakTextApplication(Adw.Application):
             self.shortcut_portal.close()
         if self.keyboard_portal:
             self.keyboard_portal.close()
+        if self.control_service:
+            self.control_service.close()
+            self.control_service = None
         pending = asyncio.all_tasks(self.loop)
         for task in pending:
             task.cancel()

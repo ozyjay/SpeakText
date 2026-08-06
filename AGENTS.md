@@ -24,12 +24,18 @@ These instructions apply to the entire repository.
 
 - Keep GTK and portal orchestration in `src/speaktext`; the C++ worker must
   remain UI- and portal-independent.
+- Keep `extension/` limited to a GNOME top-bar indicator and non-sensitive
+  controls. It must not access the microphone, portals, worker, clipboard, or
+  transcript text. The D-Bus control interface may expose only state labels,
+  content-free status messages, and whether recovery text can be copied.
 - `DictationCoordinator` is the sole owner of dictation state transitions.
 - `AudioCapture` must stream PCM through pipes or memory and must not create a
   temporary audio file.
 - Keep one persistent `TranscriptionWorker` process so the model is loaded once.
 - Maintain the documented little-endian, length-prefixed worker protocol. If it
   changes, update both implementations, tests, and `docs/architecture.md`.
+- If the top-bar D-Bus interface changes, update the Python service, Shell
+  extension, tests, and `docs/top-bar.md` together.
 - Preflight the complete transcript before keyboard insertion. Do not retry a
   partial insertion automatically because that can duplicate text.
 - Keep clipboard fallback explicit and recoverable. Retain failed text only in
@@ -91,4 +97,3 @@ These instructions apply to the entire repository.
   protocol framing, privacy guarantees, or supported platforms change.
 - Keep `README.md` concise and user-facing. Put detailed design and maintenance
   material under `docs/` and link it from `docs/README.md`.
-

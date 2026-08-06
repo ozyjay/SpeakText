@@ -3,10 +3,12 @@
 ## Runtime overview
 
 SpeakText is a GTK/libadwaita application with a persistent native
-`whisper.cpp` worker. Desktop integration remains in Python; model inference
-remains in the C++ worker.
+`whisper.cpp` worker and a small GNOME Shell status extension. Dictation and
+portal integration remain in Python; model inference remains in the C++ worker.
 
 ```text
+GNOME top-bar extension ◄── content-free D-Bus status/control ──► GTK app
+                                                               │
 Global Shortcuts portal
         │ Activated / Deactivated
         ▼
@@ -21,6 +23,11 @@ TextInjector ──► Remote Desktop keyboard portal ──► current Wayland 
         │
         └── failure before insertion ──► Wayland clipboard + notification
 ```
+
+The Shell extension is presentation-only. It receives the state, a
+content-free status message, and a boolean indicating whether recovery text is
+available. It never receives PCM or transcript text and cannot initiate a
+dictation state transition.
 
 ## Application state
 
@@ -93,7 +100,10 @@ transcription completes.
 - Settings: `$XDG_CONFIG_HOME/speaktext/config.json`, mode `0600`
 - Diagnostics: `$XDG_STATE_HOME/speaktext/speaktext.log`
 - User-local worker: `~/.local/libexec/speaktext/speaktext-worker`
+- GNOME extension:
+  `$XDG_DATA_HOME/gnome-shell/extensions/speaktext@local`
+- D-Bus activation file:
+  `$XDG_DATA_HOME/dbus-1/services/local.SpeakText.service`
 
 Each XDG variable falls back to its conventional directory beneath the user's
 home.
-

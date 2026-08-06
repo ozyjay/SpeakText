@@ -62,12 +62,28 @@ content.
 ## Application closes but dictation keeps running
 
 Closing the window hides it by design. Launch SpeakText again to reopen the
-single existing instance, then choose **Quit** to stop the worker and portal
-sessions.
+single existing instance, then choose **Quit SpeakText** from the top-bar menu
+to stop the worker and portal sessions.
+
+## Top-bar icon is missing
+
+Check whether GNOME knows and has enabled the extension:
+
+```bash
+gnome-extensions info speaktext@local
+gnome-extensions enable speaktext@local
+```
+
+GNOME Shell may not discover an extension installed during the current
+session. Log out and back in, then enable it again. On Wayland, do not try to
+restart GNOME Shell with `Alt+F2` and `r`.
+
+If the icon shows a disconnected state, choose **Start SpeakText** from its
+menu. Confirm that `$XDG_DATA_HOME/dbus-1/services/local.SpeakText.service`
+exists when D-Bus activation does not start the application.
 
 ## Diagnostics
 
 Logs are stored at `$XDG_STATE_HOME/speaktext/speaktext.log`, falling back to
 `~/.local/state/speaktext/speaktext.log`. They rotate automatically and must not
 contain audio or transcript content.
-

@@ -3,7 +3,8 @@
 SpeakText is private, local speech-to-text dictation for Fedora 44 Workstation
 on GNOME Wayland. Hold the configured global shortcut, speak, then release it;
 SpeakText transcribes with a local Whisper model and inserts the result at the
-currently focused cursor.
+currently focused cursor. A GNOME top-bar indicator shows whether SpeakText is
+ready, recording, transcribing, inserting, or needs attention.
 
 No audio or transcript is written to disk, sent over the network, included in
 diagnostic logs, or retained after successful insertion. The only runtime
@@ -21,6 +22,8 @@ network request is the first model download.
   no screen or pointer access is requested.
 - If keyboard access is unavailable, SpeakText copies the transcript and shows
   a notification. A partial insertion is never retried automatically.
+- The top-bar menu can open the settings window, copy recoverable text, and
+  quit SpeakText. It never receives audio or transcript text.
 - Wayland does not expose the original focused application. Text goes to the
   cursor focused when transcription finishes.
 
@@ -59,9 +62,18 @@ Install beneath `~/.local` without root access:
 make install-user
 ```
 
-Launch **SpeakText** from the GNOME application grid, or run
-`~/.local/bin/speaktext`. Closing the window keeps dictation running; use the
-window's **Quit** button to end it.
+The installer also adds and enables the `speaktext@local` GNOME Shell
+extension. If GNOME has not seen a newly installed extension yet, log out and
+back in, then run:
+
+```bash
+gnome-extensions enable speaktext@local
+```
+
+Use the microphone icon in the top bar to open the settings window, copy a
+recoverable transcript, or quit. You can also launch **SpeakText** from the
+GNOME application grid or run `~/.local/bin/speaktext`. Closing the window
+keeps dictation running.
 
 To remove executables and desktop metadata while retaining the downloaded
 model and settings:
@@ -99,6 +111,8 @@ native worker and model are available, run the manual acceptance checklist in
 - `TextInjector` preflights the entire transcript through `libxkbcommon` before
   sending keysyms.
 - `DictationCoordinator` exclusively owns the application state machine.
+- A small GNOME Shell extension renders the top-bar indicator and talks to the
+  application over a content-free local D-Bus control interface.
 
 Diagnostic logs are stored under `$XDG_STATE_HOME/speaktext` and contain state,
 timing, and error metadata only.

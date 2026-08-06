@@ -60,6 +60,8 @@ Useful additional checks are:
 ```bash
 PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 -m speaktext --help
 bash -n scripts/*.sh
+node --check extension/extension.js
+gnome-extensions pack --force --out-dir /tmp extension
 cmake --build build --target speaktext-worker
 ```
 
@@ -73,11 +75,19 @@ locations:
 
 ```bash
 test_root=$(mktemp -d)
+mkdir -p "$test_root/home"
 HOME="$test_root/home" XDG_DATA_HOME="$test_root/data" \
+  SPEAKTEXT_SKIP_EXTENSION_ENABLE=1 \
   ./scripts/install-user.sh
 HOME="$test_root/home" XDG_DATA_HOME="$test_root/data" \
+  SPEAKTEXT_SKIP_EXTENSION_ENABLE=1 \
   ./scripts/uninstall-user.sh
 ```
+
+Skipping extension enablement is required for this isolated check because the
+test installation is not visible to the live GNOME Shell. Verify the installed
+extension interactively in the target session using
+[acceptance-testing.md](acceptance-testing.md).
 
 The uninstaller intentionally retains model, configuration, and state data.
 
@@ -90,4 +100,3 @@ The uninstaller intentionally retains model, configuration, and state data.
 - Check that new diagnostics cannot contain PCM or transcript content.
 - Update architecture and privacy documentation when interfaces, permissions,
   paths, or persistence change.
-

@@ -1,0 +1,4 @@
+[D-BUS Service]
+Name=local.SpeakText
+Exec=@EXEC@ --gapplication-service
+

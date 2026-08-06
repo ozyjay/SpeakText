@@ -58,29 +58,30 @@ These instructions apply to the entire repository.
 
 - Check Fedora dependencies without modifying the system:
 
-  ```bash
-  ./scripts/bootstrap.sh --check
+  ```powershell
+  ./scripts/bootstrap.ps1 -Check
   ```
 
 - Build the pinned CPU-only worker:
 
-  ```bash
+  ```powershell
   make build
   ```
 
 - Run the automated suite:
 
-  ```bash
+  ```powershell
   make test
   ```
 
 - Run the optional real-model worker integration test only when a verified
   model is already available:
 
-  ```bash
-  SPEAKTEXT_TEST_MODEL=/path/to/ggml-base.en.bin \
-    PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src \
-    python3 -m unittest tests.test_native_worker -v
+  ```powershell
+  $env:SPEAKTEXT_TEST_MODEL = "/path/to/ggml-base.en.bin"
+  $env:PYTHONDONTWRITEBYTECODE = "1"
+  $env:PYTHONPATH = "src"
+  python3 -m unittest tests.test_native_worker -v
   ```
 
 - For portal, microphone, and cursor changes, also follow

@@ -45,7 +45,7 @@ window so the indicator can keep it available after login.
 and attempts to enable it. GNOME may require one logout and login before it
 discovers a newly installed extension. Check or enable it with:
 
-```bash
+```powershell
 gnome-extensions info speaktext@local
 gnome-extensions enable speaktext@local
 ```

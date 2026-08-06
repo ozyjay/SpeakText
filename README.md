@@ -29,24 +29,25 @@ network request is the first model download.
 
 ## Build
 
-The current Fedora 44 Workstation image normally contains most dependencies.
-Check without changing the system:
+The scripts and Make targets use PowerShell 7 (`pwsh`). The current Fedora 44
+Workstation image normally contains most other dependencies. Check without
+changing the system:
 
-```bash
-./scripts/bootstrap.sh --check
+```powershell
+./scripts/bootstrap.ps1 -Check
 ```
 
 If anything is missing, the script prints a suggested `dnf` command but never
 runs `sudo`. Once dependencies are available, build the CPU-only native worker:
 
-```bash
-./scripts/bootstrap.sh
+```powershell
+./scripts/bootstrap.ps1
 ```
 
 This fetches the pinned `whisper.cpp` 1.9.1 source during the first build. Run
 the development copy with:
 
-```bash
+```powershell
 make run
 ```
 
@@ -58,7 +59,7 @@ control. Denying keyboard control leaves clipboard fallback available.
 
 Install beneath `~/.local` without root access:
 
-```bash
+```powershell
 make install-user
 ```
 
@@ -68,7 +69,7 @@ Snap's private data directory and installs into the host user's
 `~/.local/share`. If GNOME has not seen a newly installed extension yet, log
 out and back in, then run:
 
-```bash
+```powershell
 gnome-extensions enable speaktext@local
 ```
 
@@ -80,21 +81,21 @@ keeps dictation running.
 To remove executables and desktop metadata while retaining the downloaded
 model and settings:
 
-```bash
+```powershell
 make uninstall-user
 ```
 
 Retained data can be removed manually from:
 
-- `${XDG_DATA_HOME:-~/.local/share}/speaktext`
-- `${XDG_CONFIG_HOME:-~/.config}/speaktext`
-- `${XDG_STATE_HOME:-~/.local/state}/speaktext`
+- `$env:XDG_DATA_HOME/speaktext` (default: `~/.local/share/speaktext`)
+- `$env:XDG_CONFIG_HOME/speaktext` (default: `~/.config/speaktext`)
+- `$env:XDG_STATE_HOME/speaktext` (default: `~/.local/state/speaktext`)
 
 ## Testing
 
 Run the dependency-free Python suite:
 
-```bash
+```powershell
 make test
 ```
 

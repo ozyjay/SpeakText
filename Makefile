@@ -1,19 +1,22 @@
+SHELL := /usr/bin/pwsh
+.SHELLFLAGS := -NoLogo -NoProfile -NonInteractive -Command
+
 .PHONY: check build run install-user uninstall-user test
 
 check:
-	./scripts/bootstrap.sh --check
+	./scripts/bootstrap.ps1 -Check
 
 build:
-	./scripts/bootstrap.sh
+	./scripts/bootstrap.ps1
 
 run:
-	PYTHONPATH=src SPEAKTEXT_WORKER=build/speaktext-worker python3 -m speaktext
+	$$env:PYTHONPATH = 'src'; $$env:SPEAKTEXT_WORKER = 'build/speaktext-worker'; python3 -m speaktext
 
 install-user: build
-	./scripts/install-user.sh
+	./scripts/install-user.ps1
 
 uninstall-user:
-	./scripts/uninstall-user.sh
+	./scripts/uninstall-user.ps1
 
 test:
-	PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 -m unittest discover -s tests -v
+	$$env:PYTHONDONTWRITEBYTECODE = '1'; $$env:PYTHONPATH = 'src'; python3 -m unittest discover -s tests -v

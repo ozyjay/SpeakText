@@ -3,10 +3,10 @@
 ## Prerequisites
 
 SpeakText targets Fedora 44 Workstation with GNOME Wayland. Required tools and
-runtime libraries are checked with:
+runtime libraries are checked with PowerShell 7 (`pwsh`):
 
-```bash
-./scripts/bootstrap.sh --check
+```powershell
+./scripts/bootstrap.ps1 -Check
 ```
 
 The script never invokes `sudo`. If dependencies are absent, it prints the
@@ -16,7 +16,7 @@ corresponding Fedora package names and exits.
 
 Build the native CPU worker:
 
-```bash
+```powershell
 make build
 ```
 
@@ -26,7 +26,7 @@ disabled and `-march=native` optimises the worker for the build machine.
 
 Run directly from the repository:
 
-```bash
+```powershell
 make run
 ```
 
@@ -38,7 +38,7 @@ keyboard-only permission dialogs.
 
 Run all tests that avoid microphone and portal side effects:
 
-```bash
+```powershell
 make test
 ```
 
@@ -46,10 +46,11 @@ The ordinary suite uses fakes for PipeWire, portals, keyboard injection,
 clipboard access, and worker inference. The native integration test is skipped
 unless a model path is supplied:
 
-```bash
-SPEAKTEXT_TEST_MODEL=/path/to/ggml-base.en.bin \
-  PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src \
-  python3 -m unittest tests.test_native_worker -v
+```powershell
+$env:SPEAKTEXT_TEST_MODEL = "/path/to/ggml-base.en.bin"
+$env:PYTHONDONTWRITEBYTECODE = "1"
+$env:PYTHONPATH = "src"
+python3 -m unittest tests.test_native_worker -v
 ```
 
 This test loads the real model, sends one second of silent PCM through the
@@ -57,9 +58,11 @@ framed protocol, verifies a UTF-8 response, and requests graceful shutdown.
 
 Useful additional checks are:
 
-```bash
-PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 -m speaktext --help
-bash -n scripts/*.sh
+```powershell
+$env:PYTHONDONTWRITEBYTECODE = "1"
+$env:PYTHONPATH = "src"
+python3 -m speaktext --help
+pwsh -NoProfile -Command '$failed = $false; Get-ChildItem scripts/*.ps1 | ForEach-Object { $tokens = $null; $errors = $null; [Management.Automation.Language.Parser]::ParseFile($_.FullName, [ref] $tokens, [ref] $errors) > $null; if ($errors.Count) { $failed = $true; Write-Error $errors } }; if ($failed) { exit 1 }'
 node --check extension/extension.js
 gnome-extensions pack --force --out-dir /tmp extension
 cmake --build build --target speaktext-worker
@@ -73,15 +76,25 @@ Portal and microphone validation is intentionally manual; use
 Do not install into the real home merely to test the scripts. Use temporary
 locations:
 
-```bash
-test_root=$(mktemp -d)
-mkdir -p "$test_root/home"
-HOME="$test_root/home" XDG_DATA_HOME="$test_root/data" \
-  SPEAKTEXT_SKIP_EXTENSION_ENABLE=1 \
-  ./scripts/install-user.sh
-HOME="$test_root/home" XDG_DATA_HOME="$test_root/data" \
-  SPEAKTEXT_SKIP_EXTENSION_ENABLE=1 \
-  ./scripts/uninstall-user.sh
+```powershell
+$testRoot = Join-Path ([IO.Path]::GetTempPath()) ([guid]::NewGuid())
+$null = New-Item -ItemType Directory -Path "$testRoot/home" -Force
+$savedHome = $env:HOME
+$savedDataHome = $env:XDG_DATA_HOME
+$savedSkipEnable = $env:SPEAKTEXT_SKIP_EXTENSION_ENABLE
+$env:HOME = "$testRoot/home"
+$env:XDG_DATA_HOME = "$testRoot/data"
+$env:SPEAKTEXT_SKIP_EXTENSION_ENABLE = "1"
+try {
+    ./scripts/install-user.ps1
+    ./scripts/uninstall-user.ps1
+}
+finally {
+    $env:HOME = $savedHome
+    $env:XDG_DATA_HOME = $savedDataHome
+    $env:SPEAKTEXT_SKIP_EXTENSION_ENABLE = $savedSkipEnable
+    Remove-Item -LiteralPath $testRoot -Recurse -Force
+}
 ```
 
 Skipping extension enablement is required for this isolated check because the

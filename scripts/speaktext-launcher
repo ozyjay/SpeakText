@@ -1,9 +1,0 @@
-#!/usr/bin/env bash
-set -eu
-
-data_home=${XDG_DATA_HOME:-"$HOME/.local/share"}
-libexec_home="$HOME/.local/libexec"
-export PYTHONPATH="$data_home/speaktext/python${PYTHONPATH:+:$PYTHONPATH}"
-export SPEAKTEXT_WORKER="$libexec_home/speaktext/speaktext-worker"
-export PYTHONDONTWRITEBYTECODE=1
-exec /usr/bin/python3 -m speaktext "$@"

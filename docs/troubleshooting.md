@@ -4,8 +4,8 @@
 
 Run:
 
-```bash
-./scripts/bootstrap.sh --check
+```powershell
+./scripts/bootstrap.ps1 -Check
 ```
 
 Install only the packages it reports, then rerun the check. The script prints a
@@ -26,7 +26,7 @@ cannot recover. Do not remove the repository or model directories.
 
 ## Microphone capture fails
 
-- Confirm `pw-record` is available with `command -v pw-record`.
+- Confirm `pw-record` is available with `Get-Command pw-record`.
 - Check GNOME Settings → Privacy & Security → Microphone.
 - Confirm the intended default input source in GNOME Settings → Sound.
 - Run `pw-record --rate 16000 --channels 1 --format s16 --raw -` only during an
@@ -69,7 +69,7 @@ to stop the worker and portal sessions.
 
 Check whether GNOME knows and has enabled the extension:
 
-```bash
+```powershell
 gnome-extensions info speaktext@local
 gnome-extensions enable speaktext@local
 ```

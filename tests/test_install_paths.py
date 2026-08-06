@@ -5,20 +5,41 @@ import unittest
 
 
 PROJECT_DIR = Path(__file__).resolve().parents[1]
-PATH_SCRIPT = PROJECT_DIR / "scripts" / "user-install-paths.sh"
+PATH_SCRIPT = PROJECT_DIR / "scripts" / "user-install-paths.ps1"
 
 
 class UserInstallPathTests(unittest.TestCase):
     def resolve_paths(self, **environment):
-        env = {"HOME": "/home/tester", **environment}
+        env = os.environ.copy()
+        for name in (
+            "XDG_DATA_HOME",
+            "SNAP",
+            "SNAP_NAME",
+            "SNAP_REAL_HOME",
+            "SNAP_USER_COMMON",
+            "SNAP_USER_DATA",
+        ):
+            env.pop(name, None)
+        env.update(
+            {
+                "HOME": "/home/tester",
+                "SPEAKTEXT_PATH_SCRIPT": str(PATH_SCRIPT),
+                "XDG_CACHE_HOME": "/tmp",
+                "XDG_CONFIG_HOME": "/tmp",
+                **environment,
+            }
+        )
         result = subprocess.run(
             [
-                "bash",
-                "-c",
-                '. "$1"; printf "%s\\n%s\\n" '
-                '"$speaktext_user_home" "$speaktext_data_home"',
-                "bash",
-                str(PATH_SCRIPT),
+                "pwsh",
+                "-NoLogo",
+                "-NoProfile",
+                "-NonInteractive",
+                "-Command",
+                ". $env:SPEAKTEXT_PATH_SCRIPT; "
+                "$paths = Get-SpeakTextUserInstallPaths; "
+                "[Console]::Out.WriteLine($paths.UserHome); "
+                "[Console]::Out.WriteLine($paths.DataHome)",
             ],
             check=True,
             capture_output=True,
@@ -38,6 +59,17 @@ class UserInstallPathTests(unittest.TestCase):
             XDG_DATA_HOME="/home/tester/snap/code/253/.local/share",
             SNAP_REAL_HOME="/home/tester",
             SNAP_USER_DATA="/home/tester/snap/code/253",
+        )
+
+        self.assertEqual(
+            paths,
+            ["/home/tester", "/home/tester/.local/share"],
+        )
+        self.assertIn("Ignoring Snap-private XDG_DATA_HOME", warning)
+
+    def test_replaces_snap_shaped_xdg_data_home_without_snap_markers(self):
+        paths, warning = self.resolve_paths(
+            XDG_DATA_HOME="/home/tester/snap/code/253/.local/share",
         )
 
         self.assertEqual(

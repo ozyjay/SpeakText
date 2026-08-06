@@ -1,0 +1,73 @@
+# Troubleshooting
+
+## Dependency check fails
+
+Run:
+
+```bash
+./scripts/bootstrap.sh --check
+```
+
+Install only the packages it reports, then rerun the check. The script prints a
+suggested `dnf` command but never elevates privileges itself.
+
+## Native build cannot fetch whisper.cpp
+
+The first `make build` needs access to GitHub. Confirm DNS and HTTPS access, then
+remove only the incomplete FetchContent directory under `build/_deps` if CMake
+cannot recover. Do not remove the repository or model directories.
+
+## Model download or checksum fails
+
+- Confirm HTTPS access to Hugging Face.
+- Check free space under `$XDG_DATA_HOME` or `~/.local/share`.
+- Use **Retry setup** after connectivity is restored.
+- Never bypass checksum validation. A `.part` download is removed after failure.
+
+## Microphone capture fails
+
+- Confirm `pw-record` is available with `command -v pw-record`.
+- Check GNOME Settings → Privacy & Security → Microphone.
+- Confirm the intended default input source in GNOME Settings → Sound.
+- Run `pw-record --rate 16000 --channels 1 --format s16 --raw -` only during an
+  attended diagnostic session; it emits binary audio to the terminal and must
+  be stopped with `Ctrl+C`.
+
+## Shortcut does not activate
+
+- Reopen SpeakText and use **Retry setup**.
+- Review the binding in GNOME's global-shortcut permission dialog.
+- Choose another binding if `CTRL+ALT+space` conflicts with an input method.
+- If activation is received but release is not, enable **Toggle-mode fallback**
+  and press once to start and once to stop.
+
+## Text is copied instead of inserted
+
+Keyboard-only Remote Desktop permission is missing or was revoked. Restart
+SpeakText and approve keyboard access. Clipboard fallback is expected while the
+portal session is unavailable.
+
+## Text appears in the wrong application
+
+This is expected if focus changes during transcription. Wayland does not allow
+SpeakText to inspect or restore the original target. Keep the intended cursor
+focused until insertion completes.
+
+## Insertion is incomplete
+
+Use **Copy last transcript** and manually replace the partial text. SpeakText
+does not automatically replay a partial insertion because that could duplicate
+content.
+
+## Application closes but dictation keeps running
+
+Closing the window hides it by design. Launch SpeakText again to reopen the
+single existing instance, then choose **Quit** to stop the worker and portal
+sessions.
+
+## Diagnostics
+
+Logs are stored at `$XDG_STATE_HOME/speaktext/speaktext.log`, falling back to
+`~/.local/state/speaktext/speaktext.log`. They rotate automatically and must not
+contain audio or transcript content.
+

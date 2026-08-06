@@ -102,3 +102,8 @@ native worker and model are available, run the manual acceptance checklist in
 
 Diagnostic logs are stored under `$XDG_STATE_HOME/speaktext` and contain state,
 timing, and error metadata only.
+
+## Documentation
+
+See the [documentation index](docs/README.md) for detailed architecture,
+development, privacy, troubleshooting, and acceptance-testing guidance.

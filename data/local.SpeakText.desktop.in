@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=SpeakText
+Comment=Private local speech-to-text dictation
+Exec=@EXEC@
+Icon=local.SpeakText
+Terminal=false
+Categories=Utility;Accessibility;
+Keywords=dictation;speech;voice;text;
+StartupNotify=true
+

@@ -2,9 +2,10 @@
 set -eu
 
 project_dir=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
-data_home=${XDG_DATA_HOME:-"$HOME/.local/share"}
-bin_dir="$HOME/.local/bin"
-libexec_dir="$HOME/.local/libexec/speaktext"
+. "$project_dir/scripts/user-install-paths.sh"
+data_home=$speaktext_data_home
+bin_dir="$speaktext_user_home/.local/bin"
+libexec_dir="$speaktext_user_home/.local/libexec/speaktext"
 python_dir="$data_home/speaktext/python"
 applications_dir="$data_home/applications"
 icons_dir="$data_home/icons/hicolor/scalable/apps"

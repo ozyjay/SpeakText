@@ -63,8 +63,10 @@ make install-user
 ```
 
 The installer also adds and enables the `speaktext@local` GNOME Shell
-extension. If GNOME has not seen a newly installed extension yet, log out and
-back in, then run:
+extension. When run from a Snap-packaged terminal or editor, it avoids that
+Snap's private data directory and installs into the host user's
+`~/.local/share`. If GNOME has not seen a newly installed extension yet, log
+out and back in, then run:
 
 ```bash
 gnome-extensions enable speaktext@local

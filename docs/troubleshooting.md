@@ -44,8 +44,9 @@ cannot recover. Do not remove the repository or model directories.
 ## Text is copied instead of inserted
 
 Keyboard-only Remote Desktop permission is missing or was revoked. Restart
-SpeakText and approve keyboard access. Clipboard fallback is expected while the
-portal session is unavailable.
+SpeakText, complete a dictation, and approve keyboard access when insertion
+begins. Clipboard fallback is expected while the on-demand portal session is
+unavailable.
 
 ## Text appears in the wrong application
 

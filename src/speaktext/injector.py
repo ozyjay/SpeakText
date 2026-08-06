@@ -3,6 +3,8 @@ from __future__ import annotations
 import asyncio
 import ctypes
 import ctypes.util
+import logging
+from collections.abc import Callable
 from dataclasses import dataclass
 from enum import Enum
 from typing import Protocol
@@ -12,16 +14,19 @@ import gi
 gi.require_version("Gdk", "4.0")
 from gi.repository import Gdk
 
+LOGGER = logging.getLogger(__name__)
+
 XKB_KEY_RETURN = 0xFF0D
 XKB_KEY_TAB = 0xFF09
 XKB_KEY_NO_SYMBOL = 0
 
 
-class KeyboardSender(Protocol):
-    @property
-    def ready(self) -> bool: ...
+class KeyboardSession(Protocol):
+    async def open(self, restore_token: str | None) -> str | None: ...
 
     def send_keysym(self, keysym: int, pressed: bool) -> None: ...
+
+    def close(self) -> None: ...
 
 
 class Clipboard(Protocol):
@@ -76,25 +81,36 @@ class KeysymConverter:
 class TextInjector:
     def __init__(
         self,
-        keyboard: KeyboardSender,
+        keyboard: KeyboardSession,
         clipboard: Clipboard,
         converter: KeysymConverter | None = None,
+        restore_token: str | None = None,
+        on_restore_token: Callable[[str | None], None] | None = None,
     ) -> None:
         self.keyboard = keyboard
         self.clipboard = clipboard
         self.converter = converter or KeysymConverter()
+        self.restore_token = restore_token
+        self.on_restore_token = on_restore_token
 
     async def insert(self, text: str) -> InsertionOutcome:
         if not text:
             return InsertionOutcome(InsertionStatus.EMPTY)
-        if not self.keyboard.ready:
-            self.clipboard.copy(text)
-            return InsertionOutcome(InsertionStatus.COPIED)
 
         keysyms = [self.converter.convert(character) for character in text]
         if any(keysym == XKB_KEY_NO_SYMBOL for keysym in keysyms):
             self.clipboard.copy(text)
             return InsertionOutcome(InsertionStatus.COPIED)
+
+        try:
+            refreshed_token = await self.keyboard.open(self.restore_token)
+        except Exception as error:
+            LOGGER.warning("keyboard portal unavailable during insertion: %s", error)
+            self._update_restore_token(None)
+            self.clipboard.copy(text)
+            return InsertionOutcome(InsertionStatus.COPIED)
+
+        self._update_restore_token(refreshed_token)
 
         sent = 0
         events_sent = 0
@@ -112,4 +128,15 @@ class TextInjector:
                 self.clipboard.copy(text)
                 return InsertionOutcome(InsertionStatus.COPIED)
             return InsertionOutcome(InsertionStatus.PARTIAL, sent)
+        finally:
+            self.keyboard.close()
         return InsertionOutcome(InsertionStatus.INSERTED, sent)
+
+    def _update_restore_token(self, restore_token: str | None) -> None:
+        self.restore_token = restore_token
+        if self.on_restore_token is None:
+            return
+        try:
+            self.on_restore_token(restore_token)
+        except Exception as error:
+            LOGGER.warning("could not persist keyboard portal permission: %s", error)

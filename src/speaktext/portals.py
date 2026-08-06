@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import logging
 import secrets
 from collections.abc import Callable
@@ -7,12 +8,13 @@ from typing import Any
 
 from gi.repository import Gio, GLib
 
-from .constants import SHORTCUT_ID, SHORTCUT_TRIGGER
+from .constants import APP_ID, SHORTCUT_ID, SHORTCUT_TRIGGER
 
 LOGGER = logging.getLogger(__name__)
 PORTAL_NAME = "org.freedesktop.portal.Desktop"
 PORTAL_PATH = "/org/freedesktop/portal/desktop"
 REQUEST_INTERFACE = "org.freedesktop.portal.Request"
+HOST_REGISTRY_INTERFACE = "org.freedesktop.host.portal.Registry"
 GLOBAL_SHORTCUTS_INTERFACE = "org.freedesktop.portal.GlobalShortcuts"
 REMOTE_DESKTOP_INTERFACE = "org.freedesktop.portal.RemoteDesktop"
 KEYBOARD_DEVICE = 1
@@ -35,6 +37,25 @@ class PortalRequestRunner:
 
     def __init__(self, connection: Gio.DBusConnection | None = None) -> None:
         self.connection = connection or Gio.bus_get_sync(Gio.BusType.SESSION, None)
+        self._register_host_app()
+
+    def _register_host_app(self) -> None:
+        try:
+            self.connection.call_sync(
+                PORTAL_NAME,
+                PORTAL_PATH,
+                HOST_REGISTRY_INTERFACE,
+                "Register",
+                GLib.Variant("(sa{sv})", (APP_ID, {})),
+                None,
+                Gio.DBusCallFlags.NONE,
+                2_000,
+                None,
+            )
+        except GLib.Error as error:
+            # Older portal versions may not provide the host registry. They can
+            # still identify conventionally launched applications themselves.
+            LOGGER.warning("host portal app registration unavailable: %s", error.message)
 
     def token(self, prefix: str) -> str:
         return f"{prefix}_{secrets.token_hex(8)}"
@@ -216,13 +237,7 @@ class GlobalShortcutPortal:
             parameters: GLib.Variant,
             _user_data: Any,
         ) -> None:
-            session, shortcut_id, _timestamp, _options = parameters.unpack()
-            if session != self.session_handle or shortcut_id != SHORTCUT_ID:
-                return
-            if signal == "Activated" and self._activated:
-                self._activated()
-            elif signal == "Deactivated" and self._deactivated:
-                self._deactivated()
+            self._handle_shortcut_signal(signal, parameters)
 
         self._signal_subscription = self.runner.connection.signal_subscribe(
             PORTAL_NAME,
@@ -234,6 +249,25 @@ class GlobalShortcutPortal:
             signal_received,
             None,
         )
+
+    def _handle_shortcut_signal(
+        self, signal: str, parameters: GLib.Variant
+    ) -> None:
+        if signal not in {"Activated", "Deactivated"}:
+            return
+
+        values = parameters.unpack()
+        if not isinstance(values, tuple) or len(values) != 4:
+            LOGGER.warning("ignored malformed global shortcut signal=%s", signal)
+            return
+
+        session, shortcut_id, _timestamp, _options = values
+        if session != self.session_handle or shortcut_id != SHORTCUT_ID:
+            return
+        if signal == "Activated" and self._activated:
+            self._activated()
+        elif signal == "Deactivated" and self._deactivated:
+            self._deactivated()
 
     def close(self) -> None:
         if self._signal_subscription is not None:
@@ -265,7 +299,33 @@ class KeyboardPortal:
     def ready(self) -> bool:
         return self.session_handle is not None
 
-    def initialise(
+    async def open(self, restore_token: str | None) -> str | None:
+        if self.session_handle is not None:
+            raise PortalError("Keyboard portal session is already open")
+
+        future: asyncio.Future[str | None] = (
+            asyncio.get_running_loop().create_future()
+        )
+
+        def ready(refreshed_token: str | None) -> None:
+            if future.done():
+                self.close()
+                return
+            future.set_result(refreshed_token)
+
+        def failed(error: Exception) -> None:
+            self.close()
+            if not future.done():
+                future.set_exception(error)
+
+        self._create_session(restore_token, ready, failed)
+        try:
+            return await future
+        except asyncio.CancelledError:
+            self.close()
+            raise
+
+    def _create_session(
         self,
         restore_token: str | None,
         on_ready: Callable[[str | None], None],
@@ -386,4 +446,3 @@ class KeyboardPortal:
                 None,
             )
             self.session_handle = None
-

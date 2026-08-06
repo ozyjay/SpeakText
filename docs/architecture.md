@@ -68,26 +68,37 @@ The coordinator enforces a 120-second recording limit. The worker accepts up to
 
 ## Portal sessions
 
-`GlobalShortcutPortal` creates a session and requests shortcut ID `dictate` with
-preferred trigger `CTRL+ALT+space`. GNOME owns the final binding and emits
-activation and deactivation signals. Toggle mode is available when a compositor
-does not emit release reliably.
+SpeakText registers `local.SpeakText` on its unsandboxed D-Bus connection with
+the host portal registry before making any portal request. Global Shortcuts and
+Remote Desktop share that registered connection. Older portal versions without
+the registry fall back to their automatic application identification.
 
-`KeyboardPortal` requests device type `1`—keyboard only—with persistence mode
-`2`. Each successful restoration returns a new single-use token, which replaces
-the previous token in the private settings file. No screen, pointer, or
-touchscreen source is selected.
+`GlobalShortcutPortal` creates a session and requests shortcut ID `dictate`
+with preferred trigger `CTRL+ALT+space`. GNOME owns the final binding and emits
+activation and deactivation signals. Toggle mode is available when a
+compositor does not emit release reliably.
+
+After `TextInjector` has preflighted the complete transcript,
+`KeyboardPortal` opens a Remote Desktop session and requests device type
+`1`—keyboard only—with persistence mode `2`. Each successful restoration
+returns a new single-use token, which replaces the previous token in the
+private settings file. The session closes immediately after insertion or an
+insertion failure. No Remote Desktop session is held while SpeakText is idle,
+and no screen, pointer, or touchscreen source is selected.
 
 ## Insertion and recovery
 
 `TextInjector` converts the complete transcript to XKB keysyms before sending
-anything. Newlines map to `Return` and tabs map to `Tab`.
+anything, then acquires keyboard access for that insertion only. Newlines map
+to `Return` and tabs map to `Tab`.
 
 - If permission is unavailable or preflight fails, the complete transcript is
   copied to the clipboard.
 - If the first portal call fails, clipboard fallback is still safe.
 - If any keyboard event has already been sent, the result is marked partial and
   is not retried. The full transcript remains in memory for explicit copying.
+- The keyboard portal session closes after every insertion attempt, including
+  permission and key-event failures.
 - Successful insertion clears the in-memory recovery transcript.
 
 Wayland deliberately prevents SpeakText from discovering or restoring the

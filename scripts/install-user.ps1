@@ -17,6 +17,35 @@ $dbusServicesDir = Join-Path $dataHome "dbus-1/services"
 $extensionUuid = "speaktext@local"
 $extensionDir = Join-Path $dataHome "gnome-shell/extensions/$extensionUuid"
 $workerSource = Join-Path $projectDir "build/speaktext-worker"
+$executableMode =
+    [IO.UnixFileMode]::UserRead -bor [IO.UnixFileMode]::UserWrite -bor
+    [IO.UnixFileMode]::UserExecute -bor [IO.UnixFileMode]::GroupRead -bor
+    [IO.UnixFileMode]::GroupExecute -bor [IO.UnixFileMode]::OtherRead -bor
+    [IO.UnixFileMode]::OtherExecute
+$readableMode =
+    [IO.UnixFileMode]::UserRead -bor [IO.UnixFileMode]::UserWrite -bor
+    [IO.UnixFileMode]::GroupRead -bor [IO.UnixFileMode]::OtherRead
+
+function Install-ExecutableAtomically {
+    param(
+        [Parameter(Mandatory)] [string] $Source,
+        [Parameter(Mandatory)] [string] $Destination
+    )
+
+    $destinationDir = Split-Path -Parent $Destination
+    $temporaryName = ".speaktext-worker.$PID.$([guid]::NewGuid()).tmp"
+    $temporaryPath = Join-Path $destinationDir $temporaryName
+    try {
+        Copy-Item -LiteralPath $Source -Destination $temporaryPath
+        [IO.File]::SetUnixFileMode($temporaryPath, $executableMode)
+        [IO.File]::Move($temporaryPath, $Destination, $true)
+    }
+    finally {
+        if (Test-Path -LiteralPath $temporaryPath) {
+            Remove-Item -LiteralPath $temporaryPath -Force
+        }
+    }
+}
 
 if (-not (Test-Path -LiteralPath $workerSource -PathType Leaf)) {
     [Console]::Error.WriteLine(
@@ -44,11 +73,16 @@ if (-not $skipExtensionEnable -and $null -ne $gnomeExtensions) {
 }
 
 $launcherPath = Join-Path $binDir "speaktext"
-$launcher = Get-Content (Join-Path $PSScriptRoot "speaktext-launcher.ps1") -Raw
-$launcher = $launcher.Replace("@DATA_HOME@", $dataHome.Replace("'", "''"))
-$launcher = $launcher.Replace("@LIBEXEC_HOME@", $libexecHome.Replace("'", "''"))
+$launcher = Get-Content (Join-Path $PSScriptRoot "speaktext-launcher") -Raw
+$launcher = $launcher.Replace(
+    '"@DATA_HOME@"', (ConvertTo-Json -InputObject $dataHome -Compress)
+)
+$launcher = $launcher.Replace(
+    '"@LIBEXEC_HOME@"', (ConvertTo-Json -InputObject $libexecHome -Compress)
+)
 Set-Content -LiteralPath $launcherPath -Value $launcher -NoNewline -Encoding utf8
-Copy-Item -LiteralPath $workerSource -Destination (Join-Path $libexecDir "speaktext-worker") -Force
+$workerDestination = Join-Path $libexecDir "speaktext-worker"
+Install-ExecutableAtomically $workerSource $workerDestination
 
 $pythonPackageDir = Join-Path $pythonDir "speaktext"
 $null = New-Item -ItemType Directory -Path $pythonPackageDir -Force
@@ -70,16 +104,8 @@ Copy-Item -LiteralPath (Join-Path $projectDir "extension/extension.js") `
 Copy-Item -LiteralPath (Join-Path $projectDir "extension/metadata.json") `
     -Destination (Join-Path $extensionDir "metadata.json") -Force
 
-$executableMode =
-    [IO.UnixFileMode]::UserRead -bor [IO.UnixFileMode]::UserWrite -bor
-    [IO.UnixFileMode]::UserExecute -bor [IO.UnixFileMode]::GroupRead -bor
-    [IO.UnixFileMode]::GroupExecute -bor [IO.UnixFileMode]::OtherRead -bor
-    [IO.UnixFileMode]::OtherExecute
-$readableMode =
-    [IO.UnixFileMode]::UserRead -bor [IO.UnixFileMode]::UserWrite -bor
-    [IO.UnixFileMode]::GroupRead -bor [IO.UnixFileMode]::OtherRead
 [IO.File]::SetUnixFileMode($launcherPath, $executableMode)
-[IO.File]::SetUnixFileMode((Join-Path $libexecDir "speaktext-worker"), $executableMode)
+[IO.File]::SetUnixFileMode($workerDestination, $executableMode)
 @(
     $desktopPath,
     $dbusServicePath,

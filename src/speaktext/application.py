@@ -19,10 +19,25 @@ from .coordinator import DictationCoordinator, DictationState
 from .injector import ClipboardFallback, TextInjector
 from .logging_config import configure_logging
 from .model import ModelManager
-from .portals import GlobalShortcutPortal, KeyboardPortal, PortalError
+from .portals import (
+    GlobalShortcutPortal,
+    KeyboardPortal,
+    PortalRequestRunner,
+)
 from .worker import TranscriptionWorker
 
 LOGGER = logging.getLogger(__name__)
+StatusNotification = tuple[str, str, str]
+
+
+def status_notification(
+    state: DictationState, message: str
+) -> StatusNotification | None:
+    if state is DictationState.ERROR:
+        return ("dictation-error", "SpeakText error", message)
+    if message == "Text copied; paste it at the cursor":
+        return ("dictation-result", APP_NAME, message)
+    return None
 
 
 class SpeakTextApplication(Adw.Application):
@@ -42,6 +57,7 @@ class SpeakTextApplication(Adw.Application):
         self.model_manager = ModelManager()
         self.shortcut_portal: GlobalShortcutPortal | None = None
         self.keyboard_portal: KeyboardPortal | None = None
+        self.portal_runner: PortalRequestRunner | None = None
         self.coordinator: DictationCoordinator | None = None
         self.control_service: ControlService | None = None
         self._model_task: asyncio.Task[None] | None = None
@@ -162,8 +178,9 @@ class SpeakTextApplication(Adw.Application):
 
     def _initialise_services(self) -> bool:
         try:
-            self.shortcut_portal = GlobalShortcutPortal()
-            self.keyboard_portal = KeyboardPortal()
+            self.portal_runner = PortalRequestRunner(self.get_dbus_connection())
+            self.shortcut_portal = GlobalShortcutPortal(self.portal_runner)
+            self.keyboard_portal = KeyboardPortal(self.portal_runner)
         except GLib.Error as error:
             self._setup_error(f"Could not connect to desktop portals: {error.message}")
             return GLib.SOURCE_REMOVE
@@ -173,11 +190,6 @@ class SpeakTextApplication(Adw.Application):
             self._shortcut_deactivated,
             self._shortcut_ready,
             self._shortcut_error,
-        )
-        self.keyboard_portal.initialise(
-            self.settings.remote_desktop_restore_token,
-            self._keyboard_ready,
-            self._keyboard_unavailable,
         )
         self._model_task = self.loop.create_task(self._prepare_model_and_worker())
         return GLib.SOURCE_REMOVE
@@ -193,7 +205,12 @@ class SpeakTextApplication(Adw.Application):
             recogniser = TranscriptionWorker(worker_path(), model_path)
             keyboard = self.keyboard_portal
             assert keyboard is not None
-            injector = TextInjector(keyboard, ClipboardFallback())
+            injector = TextInjector(
+                keyboard,
+                ClipboardFallback(),
+                restore_token=self.settings.remote_desktop_restore_token,
+                on_restore_token=self._keyboard_ready,
+            )
             self.coordinator = DictationCoordinator(
                 AudioCapture(), recogniser, injector, self._set_status
             )
@@ -231,18 +248,11 @@ class SpeakTextApplication(Adw.Application):
             self.retry_button.set_sensitive(False)
 
     def _keyboard_ready(self, restore_token: str | None) -> None:
-        LOGGER.info("keyboard portal ready")
-        if restore_token:
-            self.settings.remote_desktop_restore_token = restore_token
-            self.settings_store.save(self.settings)
-
-    def _keyboard_unavailable(self, error: Exception) -> None:
-        LOGGER.warning("keyboard portal unavailable: %s", error)
-        self._notify(
-            "keyboard-permission",
-            "Clipboard fallback enabled",
-            "Keyboard permission was not granted; transcripts will be copied instead.",
-        )
+        LOGGER.info("keyboard portal restore token refreshed")
+        if self.settings.remote_desktop_restore_token == restore_token:
+            return
+        self.settings.remote_desktop_restore_token = restore_token
+        self.settings_store.save(self.settings)
 
     def _shortcut_error(self, error: Exception) -> None:
         self._shortcut_failed = True
@@ -275,18 +285,10 @@ class SpeakTextApplication(Adw.Application):
         if self.control_service:
             self.control_service.update(state.value, message, can_copy)
 
-        if state in {
-            DictationState.RECORDING,
-            DictationState.TRANSCRIBING,
-            DictationState.INSERTING,
-        }:
-            self._notify("dictation-status", state.value, message)
-        else:
-            self.withdraw_notification("dictation-status")
-            if state is DictationState.ERROR:
-                self._notify("dictation-error", "SpeakText error", message)
-            elif message in {"Text inserted", "Text copied; paste it at the cursor"}:
-                self._notify("dictation-result", APP_NAME, message)
+        self.withdraw_notification("dictation-status")
+        notification = status_notification(state, message)
+        if notification:
+            self._notify(*notification)
 
     def _setup_error(self, message: str) -> None:
         LOGGER.error("setup error: %s", message)
@@ -301,7 +303,7 @@ class SpeakTextApplication(Adw.Application):
             if self.shortcut_portal:
                 self.shortcut_portal.close()
             try:
-                self.shortcut_portal = GlobalShortcutPortal()
+                self.shortcut_portal = GlobalShortcutPortal(self.portal_runner)
                 self.shortcut_portal.initialise(
                     self._shortcut_activated,
                     self._shortcut_deactivated,

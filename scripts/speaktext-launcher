@@ -1,0 +1,49 @@
+#!/usr/bin/python3
+"""Installed entry point for SpeakText."""
+
+from __future__ import annotations
+
+import os
+import subprocess
+import sys
+from pathlib import Path
+
+
+APP_ID = "local.SpeakText"
+DATA_HOME = Path("@DATA_HOME@")
+LIBEXEC_HOME = Path("@LIBEXEC_HOME@")
+
+
+def delegate_snap_launch() -> None:
+    if len(sys.argv) != 1 or not os.environ.get("SNAP"):
+        return
+
+    environment = os.environ.copy()
+    environment["XDG_DATA_HOME"] = str(DATA_HOME)
+    for name in tuple(environment):
+        if name == "SNAP" or name.startswith("SNAP_"):
+            environment.pop(name)
+    for name in ("GIO_EXTRA_MODULES", "GTK_PATH", "LD_LIBRARY_PATH"):
+        environment.pop(name, None)
+
+    result = subprocess.run(
+        ["/usr/bin/gapplication", "launch", APP_ID],
+        check=False,
+        env=environment,
+    )
+    raise SystemExit(result.returncode)
+
+
+delegate_snap_launch()
+
+sys.path.insert(0, str(DATA_HOME / "speaktext/python"))
+sys.dont_write_bytecode = True
+os.environ["XDG_DATA_HOME"] = str(DATA_HOME)
+os.environ["SPEAKTEXT_WORKER"] = str(
+    LIBEXEC_HOME / "speaktext/speaktext-worker"
+)
+
+from speaktext.application import main  # noqa: E402
+
+
+raise SystemExit(main())

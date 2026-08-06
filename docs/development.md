@@ -12,6 +12,11 @@ runtime libraries are checked with PowerShell 7 (`pwsh`):
 The script never invokes `sudo`. If dependencies are absent, it prints the
 corresponding Fedora package names and exits.
 
+The installed `speaktext` command is a direct Python entry point, matching the
+application process identity expected by XDG Desktop Portal. PowerShell remains
+the language for build and maintenance scripts but is not part of the running
+application's process tree.
+
 ## Build and run
 
 Build the native CPU worker:
@@ -63,6 +68,7 @@ $env:PYTHONDONTWRITEBYTECODE = "1"
 $env:PYTHONPATH = "src"
 python3 -m speaktext --help
 pwsh -NoProfile -Command '$failed = $false; Get-ChildItem scripts/*.ps1 | ForEach-Object { $tokens = $null; $errors = $null; [Management.Automation.Language.Parser]::ParseFile($_.FullName, [ref] $tokens, [ref] $errors) > $null; if ($errors.Count) { $failed = $true; Write-Error $errors } }; if ($failed) { exit 1 }'
+python3 -c "import ast, pathlib; ast.parse(pathlib.Path('scripts/speaktext-launcher').read_text())"
 node --check extension/extension.js
 gnome-extensions pack --force --out-dir /tmp extension
 cmake --build build --target speaktext-worker
@@ -107,6 +113,9 @@ Snap-packaged editor terminal, it uses the host user's `~/.local/share`
 instead. Other explicit `XDG_DATA_HOME` values are preserved.
 
 The uninstaller intentionally retains model, configuration, and state data.
+The installer atomically replaces the persistent native worker, so reinstalling
+while SpeakText is running does not fail with a `Text file busy` error. The
+running process continues using its previous worker until SpeakText restarts.
 
 ## Change checklist
 

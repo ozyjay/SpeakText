@@ -18,8 +18,9 @@ network request is the first model download.
   portal dialog owns the final binding.
 - A settings switch provides press-once/start, press-again/stop fallback if a
   compositor fails to report shortcut release.
-- Keyboard input uses the XDG Remote Desktop portal with keyboard-only access;
-  no screen or pointer access is requested.
+- Keyboard input opens an XDG Remote Desktop session on demand, with
+  keyboard-only access, just before insertion and closes it immediately
+  afterwards. No screen or pointer access is requested.
 - If keyboard access is unavailable, SpeakText copies the transcript and shows
   a notification. A partial insertion is never retried automatically.
 - The top-bar menu can open the settings window, copy recoverable text, and
@@ -29,9 +30,10 @@ network request is the first model download.
 
 ## Build
 
-The scripts and Make targets use PowerShell 7 (`pwsh`). The current Fedora 44
-Workstation image normally contains most other dependencies. Check without
-changing the system:
+The build and maintenance scripts and Make targets use PowerShell 7 (`pwsh`).
+The installed entry point runs directly under Python so desktop portals can
+identify the application process. The current Fedora 44 Workstation image
+normally contains most other dependencies. Check without changing the system:
 
 ```powershell
 ./scripts/bootstrap.ps1 -Check
@@ -52,8 +54,9 @@ make run
 ```
 
 The first run downloads and verifies the approximately 142 MiB English model.
-GNOME then asks you to approve the global shortcut and keyboard-only remote
-control. Denying keyboard control leaves clipboard fallback available.
+GNOME then asks you to approve the global shortcut. The first completed
+dictation asks for keyboard-only remote control when its text is ready to
+insert. Denying keyboard control leaves clipboard fallback available.
 
 ## User-local installation
 
@@ -66,8 +69,10 @@ make install-user
 The installer also adds and enables the `speaktext@local` GNOME Shell
 extension. When run from a Snap-packaged terminal or editor, it avoids that
 Snap's private data directory and installs into the host user's
-`~/.local/share`. If GNOME has not seen a newly installed extension yet, log
-out and back in, then run:
+`~/.local/share`. Launches from a Snap terminal are delegated to host D-Bus
+activation so desktop portals receive the `local.SpeakText` application ID. If
+GNOME has not seen a newly installed extension yet, log out and back in, then
+run:
 
 ```powershell
 gnome-extensions enable speaktext@local
@@ -110,7 +115,8 @@ native worker and model are available, run the manual acceptance checklist in
   memory.
 - `TranscriptionWorker` owns a persistent C++ process with the model loaded
   once and communicates through a length-prefixed pipe protocol.
-- `GlobalShortcutPortal` and `KeyboardPortal` isolate XDG portal sessions.
+- `GlobalShortcutPortal` owns the persistent shortcut session;
+  `KeyboardPortal` isolates each short-lived insertion session.
 - `TextInjector` preflights the entire transcript through `libxkbcommon` before
   sending keysyms.
 - `DictationCoordinator` exclusively owns the application state machine.

@@ -11,7 +11,7 @@ processing.
 | Transcript | Process memory and keyboard portal | Cleared after successful insertion |
 | Failed transcript | Process memory and optionally clipboard | Until copied, replaced, or the app exits |
 | Whisper model | XDG data directory | Until manually removed |
-| Portal restore token | Mode-`0600` XDG configuration file | Replaced after successful restoration |
+| Portal restore token | Mode-`0600` XDG configuration file | Replaced after successful restoration; cleared after an acquisition failure |
 | Diagnostics | XDG state directory | Rotating local files |
 | Top-bar status | Session D-Bus and GNOME Shell memory | Application session |
 
@@ -36,12 +36,16 @@ SpeakText uses two XDG portal sessions:
 
 - Global Shortcuts receives only the configured activation and deactivation
   events. It is not a general keyboard listener.
-- Remote Desktop requests keyboard device type `1` only. SpeakText does not
-  select screen-cast sources and does not request pointer or touchscreen access.
+- Remote Desktop opens only after a transcript passes insertion preflight,
+  requests keyboard device type `1`, and closes after that insertion attempt.
+  SpeakText does not select screen-cast sources and does not request pointer or
+  touchscreen access.
 
 GNOME presents and owns permission decisions. If keyboard permission is denied
 or revoked, SpeakText degrades to clipboard recovery rather than bypassing the
-desktop security model.
+desktop security model. GNOME Shell may keep its generic orange remote-access
+indicator visible briefly after the session closes; this does not mean that
+SpeakText kept the session open.
 
 ## Top-bar interface
 

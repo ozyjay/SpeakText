@@ -9,13 +9,17 @@ in an unattended session.
    the settings window.
 2. Start SpeakText from the top-bar menu; confirm model download progress and
    its checksum check.
-3. Approve the `CTRL+ALT+space` global shortcut and keyboard-only remote-control
-   request. Confirm that no screen or pointer sharing is requested.
+3. Approve the `CTRL+ALT+space` global shortcut. Complete the first dictation,
+   then approve the keyboard-only remote-control request when insertion begins.
+   Confirm that no screen or pointer sharing is requested.
 4. Confirm the top-bar icon and status text follow Ready, Recording,
-   Transcribing, Inserting, and Error states.
+   Transcribing, Inserting, and Error states without routine desktop
+   notifications.
 5. In GNOME Text Editor, Firefox, VS Code, and Ptyxis, place the cursor in an
    editable area, hold the shortcut, speak for five to ten seconds, release it,
-   and confirm insertion at the current cursor.
+   and confirm insertion at the current cursor. Confirm GNOME's orange
+   remote-access indicator appears only around insertion and clears after its
+   minimum display period rather than remaining for the application lifetime.
 6. Dictate punctuation and Unicode words such as “café”; confirm correct text
    and that newline handling produces an Enter key event.
 7. Change focus immediately after release; confirm insertion follows the newly
@@ -27,8 +31,9 @@ in an unattended session.
    shortcut, and quit during recording and transcription. Confirm recovery with
    no crash or stale recording.
 10. Hold the shortcut for two minutes; confirm automatic stop and transcription.
-11. Restart SpeakText; confirm the restored permission does not require screen
-   capture and the single-use restore token is refreshed.
+11. Restart SpeakText and dictate again; confirm the on-demand session restores
+    permission without screen capture, refreshes the single-use token, and
+    closes after insertion.
 12. Search `$XDG_CONFIG_HOME`, `$XDG_STATE_HOME`, and `/tmp` for distinctive
     dictated words. Confirm that neither transcripts nor PCM data were written.
 

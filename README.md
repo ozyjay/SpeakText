@@ -1,9 +1,9 @@
 # SpeakText
 
 SpeakText is private, local speech-to-text dictation for Fedora 44 Workstation
-on GNOME Wayland. Hold the configured global shortcut, speak, then release it;
-SpeakText transcribes with a local Whisper model and inserts the result at the
-currently focused cursor. A GNOME top-bar indicator shows whether SpeakText is
+on GNOME Wayland. Select its IBus input source and rapidly tap either Shift key
+twice to start recording; double-tap again to transcribe and insert. A GNOME
+top-bar indicator shows whether SpeakText is
 ready, recording, transcribing, inserting, or needs attention.
 
 No audio or transcript is written to disk, sent over the network, included in
@@ -14,17 +14,17 @@ network request is the first model download.
 
 - Fedora 44 Workstation, GNOME 50, and Wayland only.
 - English dictation up to two minutes using `ggml-base.en.bin`.
-- `CTRL+ALT+space` is requested as the default push-to-talk shortcut. GNOME's
-  portal dialog owns the final binding.
-- `CTRL+ALT+x` is requested as the default cancellation shortcut. Press it
-  while still holding push-to-talk to discard the recording immediately.
-- A settings switch provides press-once/start, press-again/stop fallback if a
-  compositor fails to report shortcut release.
-- Keyboard input opens an XDG Remote Desktop session on demand, with
-  keyboard-only access, just before insertion and closes it immediately
-  afterwards. No screen or pointer access is requested.
-- If keyboard access is unavailable, SpeakText copies the transcript and shows
-  a notification. A partial insertion is never retried automatically.
+- Rapidly double-tap either Shift key to start recording, then double-tap again
+  to finish and transcribe.
+- Tap either Shift key once while recording to cancel after the short
+  double-tap window, discarding the recording immediately.
+- The gesture is available only while SpeakText is the selected IBus input
+  source in an editable context, so it cannot start recording elsewhere.
+- Completed transcripts are committed through the local IBus input method;
+  SpeakText does not request Remote Desktop, screen, pointer, or synthetic
+  keyboard access.
+- If the SpeakText input method is inactive, SpeakText copies the transcript
+  and shows a notification.
 - The application window and top-bar menu can cancel an active recording,
   immediately discarding its in-memory audio without transcription.
 - The top-bar menu can also open the settings window, copy recoverable text,
@@ -35,9 +35,9 @@ network request is the first model download.
 ## Build
 
 The build and maintenance scripts and Make targets use PowerShell 7 (`pwsh`).
-The installed entry point runs directly under Python so desktop portals can
-identify the application process. The current Fedora 44 Workstation image
-normally contains most other dependencies. Check without changing the system:
+The installed entry point runs directly under Python. The current Fedora 44
+Workstation image normally contains most other dependencies. Check without
+changing the system:
 
 ```powershell
 ./scripts/bootstrap.ps1 -Check
@@ -58,9 +58,8 @@ make run
 ```
 
 The first run downloads and verifies the approximately 142 MiB English model.
-GNOME then asks you to approve the global shortcut. The first completed
-dictation asks for keyboard-only remote control when its text is ready to
-insert. Denying keyboard control leaves clipboard fallback available.
+While SpeakText is running, add **SpeakText** as an input source in GNOME
+Settings, then select it to enable the Shift gesture and native text insertion.
 
 ## User-local installation
 
@@ -71,10 +70,12 @@ make install-user
 ```
 
 The installer also adds and enables the `speaktext@local` GNOME Shell
-extension. When run from a Snap-packaged terminal or editor, it avoids that
+extension. Start SpeakText, then add **SpeakText** under GNOME Settings →
+Keyboard → Input Sources while the application is running. When run
+from a Snap-packaged terminal or editor, the installer avoids that
 Snap's private data directory and installs into the host user's
 `~/.local/share`. Launches from a Snap terminal are delegated to host D-Bus
-activation so desktop portals receive the `local.SpeakText` application ID. If
+activation. If
 GNOME has not seen a newly installed extension yet, log out and back in, then
 run:
 
@@ -97,7 +98,8 @@ make uninstall-user
 Retained data can be removed manually from:
 
 - `$env:XDG_DATA_HOME/speaktext` (default: `~/.local/share/speaktext`)
-- `$env:XDG_CONFIG_HOME/speaktext` (default: `~/.config/speaktext`)
+- `$env:XDG_CONFIG_HOME/speaktext` (default: `~/.config/speaktext`; legacy
+  shortcut settings from earlier versions only)
 - `$env:XDG_STATE_HOME/speaktext` (default: `~/.local/state/speaktext`)
 
 ## Testing
@@ -108,7 +110,7 @@ Run the dependency-free Python suite:
 make test
 ```
 
-The tests use fake audio, portal, clipboard, and worker implementations, so
+The tests use fake audio, IBus, clipboard, and worker implementations, so
 they do not request desktop permissions or access the microphone. After the
 native worker and model are available, run the manual acceptance checklist in
 [`docs/acceptance-testing.md`](docs/acceptance-testing.md).
@@ -119,10 +121,9 @@ native worker and model are available, run the manual acceptance checklist in
   memory.
 - `TranscriptionWorker` owns a persistent C++ process with the model loaded
   once and communicates through a length-prefixed pipe protocol.
-- `GlobalShortcutPortal` owns the persistent shortcut session;
-  `KeyboardPortal` isolates each short-lived insertion session.
-- `TextInjector` preflights the entire transcript through `libxkbcommon` before
-  sending keysyms.
+- The IBus engine recognises the Shift gestures only in an active text context
+  and otherwise passes all keyboard events through unchanged.
+- `IBusTextInjector` commits the completed transcript to that text context.
 - `DictationCoordinator` exclusively owns the application state machine.
 - A small GNOME Shell extension renders the top-bar indicator and talks to the
   application over a content-free local D-Bus control interface.

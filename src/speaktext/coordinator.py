@@ -79,7 +79,7 @@ class DictationCoordinator:
         except Exception as error:
             self._fail(f"Could not start speech recognition: {error}", recover=False)
             raise
-        self._set_state(DictationState.READY, "Hold the shortcut to dictate")
+        self._set_state(DictationState.READY, "Double-tap Shift to dictate")
 
     async def activate(self) -> None:
         async with self._operation_lock:

@@ -8,10 +8,9 @@ processing.
 | Data | Location | Lifetime |
 | --- | --- | --- |
 | Microphone PCM | Python process memory and worker pipe | Current recording and transcription |
-| Transcript | Process memory and keyboard portal | Cleared after successful insertion |
+| Transcript | Process memory and active IBus context | Cleared after successful insertion |
 | Failed transcript | Process memory and optionally clipboard | Until copied, replaced, or the app exits |
 | Whisper model | XDG data directory | Until manually removed |
-| Portal restore token | Mode-`0600` XDG configuration file | Replaced after successful restoration; cleared after an acquisition failure |
 | Diagnostics | XDG state directory | Rotating local files |
 | Top-bar status | Session D-Bus and GNOME Shell memory | Application session |
 
@@ -32,20 +31,16 @@ cloud speech services are used.
 
 ## Desktop permissions
 
-SpeakText uses two XDG portal sessions:
+SpeakText uses the local IBus input framework. Its selected engine receives key
+events for the active text context, recognises only Shift releases for the
+dictation gesture, and passes every key event through unchanged. IBus also
+receives the completed transcript for that active context.
 
-- Global Shortcuts receives only the configured activation and deactivation
-  events. It is not a general keyboard listener.
-- Remote Desktop opens only after a transcript passes insertion preflight,
-  requests keyboard device type `1`, and closes after that insertion attempt.
-  SpeakText does not select screen-cast sources and does not request pointer or
-  touchscreen access.
-
-GNOME presents and owns permission decisions. If keyboard permission is denied
-or revoked, SpeakText degrades to clipboard recovery rather than bypassing the
-desktop security model. GNOME Shell may keep its generic orange remote-access
-indicator visible briefly after the session closes; this does not mean that
-SpeakText kept the session open.
+If the SpeakText input method is not active, SpeakText degrades to clipboard
+recovery. It does not request Remote Desktop, screen, pointer, touchscreen, or
+synthetic keyboard access or global keyboard hooks.
+Losing the active IBus context while recording cancels capture and discards its
+in-memory PCM.
 
 ## Top-bar interface
 
@@ -62,13 +57,11 @@ SpeakText cannot inspect which application or control owns focus. The transcript
 is inserted wherever the cursor is focused when recognition completes. Users
 should avoid changing focus to sensitive fields while transcription is running.
 
-Portal keyboard events may be rejected by protected surfaces. Partial insertion
-is reported without an automatic retry because replaying the complete transcript
-could duplicate already inserted text.
+Protected fields may decline input-method commits. SpeakText never inspects the
+surrounding text or reads content from the focused application.
 
 ## Reporting problems
 
 Before sharing diagnostics, review them for paths or environmental information.
-Do not attach microphone recordings, clipboard captures, configuration files
-containing restore tokens, model files, or dictated text unless deliberately
-required and safely redacted.
+Do not attach microphone recordings, clipboard captures, configuration files,
+model files, or dictated text unless deliberately required and safely redacted.

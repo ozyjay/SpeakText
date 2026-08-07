@@ -3,7 +3,7 @@
 SpeakText uses a small GNOME Shell 50 extension because GTK applications cannot
 add controls directly to the Shell panel on Wayland. The extension is a status
 and control surface only; the Python application remains the sole owner of
-dictation, portals, the clipboard, and the transcription worker.
+dictation, IBus, the clipboard, and the transcription worker.
 
 ## What the indicator shows
 
@@ -12,10 +12,10 @@ The symbolic icon follows the application state:
 | State | Meaning |
 | --- | --- |
 | Starting | The model and desktop services are being prepared |
-| Ready | The shortcut can begin dictation |
+| Ready | Double-tapping Shift can begin dictation in an active context |
 | Recording | Microphone capture is active |
 | Transcribing | Local Whisper inference is active |
-| Inserting | Keyboard access is being acquired and keysyms are being sent |
+| Inserting | The transcript is being committed through IBus |
 | Error | Setup or dictation needs attention |
 | Disconnected | The application is not running |
 
@@ -29,10 +29,8 @@ are shown only through the top-bar icon and its status text. Desktop
 notifications are reserved for errors and clipboard fallback that needs user
 attention.
 
-GNOME Shell also owns a separate orange remote-access indicator. It appears
-briefly while SpeakText opens its keyboard-only Remote Desktop session for an
-insertion and may remain visible for Shell's minimum display period after that
-session closes. SpeakText cannot replace or suppress this system indicator.
+SpeakText does not open a Remote Desktop session, so dictation does not produce
+GNOME's orange remote-access indicator.
 
 ## D-Bus contract
 
@@ -47,7 +45,7 @@ The application owns `local.SpeakText` on the session bus and exports
 - `StatusChanged(state, message, can_copy)`
 
 Status messages must remain content-free. The interface must never grow a
-transcript, PCM, clipboard-content, microphone, portal, or dictation-triggering
+transcript, PCM, clipboard-content, microphone, IBus, or dictation-triggering
 method. The installed D-Bus service activates SpeakText without opening its
 window so the indicator can keep it available after login.
 
@@ -63,5 +61,5 @@ gnome-extensions enable speaktext@local
 ```
 
 `make uninstall-user` disables and removes the extension and the D-Bus
-activation file. The existing model, private settings, and diagnostics remain
+activation file. The existing model and diagnostics remain
 available unless removed separately.

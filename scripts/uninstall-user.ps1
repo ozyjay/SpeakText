@@ -42,4 +42,4 @@ foreach ($target in $targets) {
     }
 }
 
-Write-Output "Uninstalled SpeakText. Models, settings, and diagnostics were retained."
+Write-Output "Uninstalled SpeakText. Models, legacy settings, and diagnostics were retained."

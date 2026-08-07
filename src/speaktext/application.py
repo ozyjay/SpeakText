@@ -12,26 +12,17 @@ gi.require_version("Gtk", "4.0")
 from gi.repository import Adw, Gio, GLib, Gtk  # noqa: E402
 
 from .audio import AudioCapture
-from .config import SettingsStore
 from .constants import (
     APP_ID,
     APP_NAME,
-    CANCEL_SHORTCUT_TRIGGER,
-    MODEL_PATH,
-    SHORTCUT_TRIGGER,
     worker_path,
 )
 from .control import ControlService
 from .coordinator import DictationCoordinator, DictationState
-from .injector import ClipboardFallback, TextInjector
+from .ibus import IBusTextInjector, IBusTextService
+from .injector import ClipboardFallback
 from .logging_config import configure_logging
 from .model import ModelManager
-from .portals import (
-    GlobalShortcutPortal,
-    KeyboardPortal,
-    PortalError,
-    PortalRequestRunner,
-)
 from .worker import TranscriptionWorker
 
 LOGGER = logging.getLogger(__name__)
@@ -61,17 +52,11 @@ class SpeakTextApplication(Adw.Application):
         self.copy_button: Gtk.Button | None = None
         self.cancel_button: Gtk.Button | None = None
         self.retry_button: Gtk.Button | None = None
-        self.mode_switch: Adw.SwitchRow | None = None
-        self.settings_store = SettingsStore()
-        self.settings = self.settings_store.load()
         self.model_manager = ModelManager()
-        self.shortcut_portal: GlobalShortcutPortal | None = None
-        self.keyboard_portal: KeyboardPortal | None = None
-        self.portal_runner: PortalRequestRunner | None = None
+        self.ibus_service: IBusTextService | None = None
         self.coordinator: DictationCoordinator | None = None
         self.control_service: ControlService | None = None
         self._model_task: asyncio.Task[None] | None = None
-        self._shortcut_failed = False
 
     def do_startup(self) -> None:
         Adw.Application.do_startup(self)
@@ -125,31 +110,20 @@ class SpeakTextApplication(Adw.Application):
 
         shortcut_group = Adw.PreferencesGroup(title="Dictation")
         shortcut_row = Adw.ActionRow(
-            title="Push-to-talk shortcut",
-            subtitle="Hold to record; release to transcribe and insert",
+            title="Dictation gesture",
+            subtitle="Double-tap either Shift key to start or finish recording",
         )
-        self.shortcut_label = Gtk.Label(label=SHORTCUT_TRIGGER)
+        self.shortcut_label = Gtk.Label(label="Shift, Shift")
         shortcut_row.add_suffix(self.shortcut_label)
         shortcut_group.add(shortcut_row)
 
         cancel_shortcut_row = Adw.ActionRow(
-            title="Cancel shortcut",
-            subtitle="Discard an active recording without transcribing it",
+            title="Cancel gesture",
+            subtitle="Tap either Shift key once while recording",
         )
-        self.cancel_shortcut_label = Gtk.Label(label=CANCEL_SHORTCUT_TRIGGER)
+        self.cancel_shortcut_label = Gtk.Label(label="Shift")
         cancel_shortcut_row.add_suffix(self.cancel_shortcut_label)
         shortcut_group.add(cancel_shortcut_row)
-
-        self.mode_switch = Adw.SwitchRow(
-            title="Toggle-mode fallback",
-            subtitle=(
-                "Press once to start and again to stop if the compositor does "
-                "not report shortcut release"
-            ),
-        )
-        self.mode_switch.set_active(self.settings.shortcut_mode == "toggle")
-        self.mode_switch.connect("notify::active", self._shortcut_mode_changed)
-        shortcut_group.add(self.mode_switch)
 
         privacy_row = Adw.ActionRow(
             title="Local processing",
@@ -203,20 +177,14 @@ class SpeakTextApplication(Adw.Application):
 
     def _initialise_services(self) -> bool:
         try:
-            self.portal_runner = PortalRequestRunner()
-            self.shortcut_portal = GlobalShortcutPortal(self.portal_runner)
-            self.keyboard_portal = KeyboardPortal(self.portal_runner)
-        except (GLib.Error, PortalError) as error:
-            self._setup_error(f"Could not connect to desktop portals: {error}")
+            self.ibus_service = IBusTextService(
+                self._start_or_stop_recording,
+                self._cancel_recording,
+                self._is_recording,
+            )
+        except (GLib.Error, RuntimeError) as error:
+            self._setup_error(f"Could not initialise desktop services: {error}")
             return GLib.SOURCE_REMOVE
-
-        self.shortcut_portal.initialise(
-            self._shortcut_activated,
-            self._shortcut_deactivated,
-            self._cancel_recording,
-            self._shortcut_ready,
-            self._shortcut_error,
-        )
         self._model_task = self.loop.create_task(self._prepare_model_and_worker())
         return GLib.SOURCE_REMOVE
 
@@ -229,13 +197,11 @@ class SpeakTextApplication(Adw.Application):
         try:
             model_path = await self.model_manager.ensure(progress)
             recogniser = TranscriptionWorker(worker_path(), model_path)
-            keyboard = self.keyboard_portal
-            assert keyboard is not None
-            injector = TextInjector(
-                keyboard,
+            ibus_service = self.ibus_service
+            assert ibus_service is not None
+            injector = IBusTextInjector(
+                ibus_service,
                 ClipboardFallback(),
-                restore_token=self.settings.remote_desktop_restore_token,
-                on_restore_token=self._keyboard_ready,
             )
             self.coordinator = DictationCoordinator(
                 AudioCapture(), recogniser, injector, self._set_status
@@ -244,7 +210,7 @@ class SpeakTextApplication(Adw.Application):
             if self.progress:
                 self.progress.set_fraction(1.0)
                 self.progress.set_text("Model ready")
-            if self.retry_button and not self._shortcut_failed:
+            if self.retry_button:
                 self.retry_button.set_sensitive(False)
         except Exception as error:
             self.coordinator = None
@@ -265,46 +231,19 @@ class SpeakTextApplication(Adw.Application):
                 )
         return GLib.SOURCE_REMOVE
 
-    def _shortcut_ready(
-        self, dictation_description: str, cancel_description: str
-    ) -> None:
-        LOGGER.info("global shortcuts ready")
-        self._shortcut_failed = False
-        if self.shortcut_label:
-            self.shortcut_label.set_label(dictation_description)
-        if self.cancel_shortcut_label:
-            self.cancel_shortcut_label.set_label(cancel_description)
-        if self.retry_button and self.coordinator is not None:
-            self.retry_button.set_sensitive(False)
+    def _is_recording(self) -> bool:
+        return bool(
+            self.coordinator
+            and self.coordinator.state is DictationState.RECORDING
+        )
 
-    def _keyboard_ready(self, restore_token: str | None) -> None:
-        LOGGER.info("keyboard portal restore token refreshed")
-        if self.settings.remote_desktop_restore_token == restore_token:
+    def _start_or_stop_recording(self) -> None:
+        if not self.coordinator:
             return
-        self.settings.remote_desktop_restore_token = restore_token
-        self.settings_store.save(self.settings)
-
-    def _shortcut_error(self, error: Exception) -> None:
-        self._shortcut_failed = True
-        self._setup_error(f"Shortcut unavailable: {error}")
-
-    def _shortcut_activated(self) -> None:
-        if self.coordinator:
-            if (
-                self.settings.shortcut_mode == "toggle"
-                and self.coordinator.state is DictationState.RECORDING
-            ):
-                self.loop.create_task(self.coordinator.deactivate())
-            else:
-                self.loop.create_task(self.coordinator.activate())
-
-    def _shortcut_deactivated(self) -> None:
-        if self.coordinator and self.settings.shortcut_mode != "toggle":
+        if self.coordinator.state is DictationState.RECORDING:
             self.loop.create_task(self.coordinator.deactivate())
-
-    def _shortcut_mode_changed(self, switch: Adw.SwitchRow, _property: object) -> None:
-        self.settings.shortcut_mode = "toggle" if switch.get_active() else "push-to-talk"
-        self.settings_store.save(self.settings)
+        else:
+            self.loop.create_task(self.coordinator.activate())
 
     def _set_status(self, state: DictationState, message: str) -> None:
         can_copy = bool(self.coordinator and self.coordinator.last_transcript)
@@ -331,20 +270,16 @@ class SpeakTextApplication(Adw.Application):
     def _retry_setup(self) -> None:
         if self._model_task and not self._model_task.done():
             return
-        if self._shortcut_failed:
-            if self.shortcut_portal:
-                self.shortcut_portal.close()
+        if self.ibus_service is None:
             try:
-                self.shortcut_portal = GlobalShortcutPortal(self.portal_runner)
-                self.shortcut_portal.initialise(
-                    self._shortcut_activated,
-                    self._shortcut_deactivated,
+                self.ibus_service = IBusTextService(
+                    self._start_or_stop_recording,
                     self._cancel_recording,
-                    self._shortcut_ready,
-                    self._shortcut_error,
+                    self._is_recording,
                 )
-            except GLib.Error as error:
-                self._shortcut_error(error)
+            except (GLib.Error, RuntimeError) as error:
+                self._setup_error(f"Could not initialise IBus: {error}")
+                return
         if self.coordinator is None:
             self._model_task = self.loop.create_task(self._prepare_model_and_worker())
 
@@ -395,10 +330,9 @@ class SpeakTextApplication(Adw.Application):
                 self.loop.run_until_complete(self.coordinator.shutdown())
             except Exception as error:
                 LOGGER.warning("shutdown cleanup failed: %s", error)
-        if self.shortcut_portal:
-            self.shortcut_portal.close()
-        if self.keyboard_portal:
-            self.keyboard_portal.close()
+        if self.ibus_service:
+            self.ibus_service.close()
+            self.ibus_service = None
         if self.control_service:
             self.control_service.close()
             self.control_service = None

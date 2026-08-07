@@ -1,23 +1,11 @@
 from __future__ import annotations
 
 import hashlib
-import os
 import tempfile
 import unittest
 from pathlib import Path
 
-from speaktext.config import Settings, SettingsStore
 from speaktext.model import ModelManager
-
-
-class SettingsTests(unittest.TestCase):
-    def test_round_trip_and_private_permissions(self) -> None:
-        with tempfile.TemporaryDirectory() as directory:
-            path = Path(directory) / "config.json"
-            store = SettingsStore(path)
-            store.save(Settings("token", "toggle"))
-            self.assertEqual(store.load(), Settings("token", "toggle"))
-            self.assertEqual(os.stat(path).st_mode & 0o777, 0o600)
 
 
 class ModelTests(unittest.TestCase):
@@ -33,4 +21,3 @@ class ModelTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-

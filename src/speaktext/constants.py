@@ -5,10 +5,6 @@ from pathlib import Path
 
 APP_ID = "local.SpeakText"
 APP_NAME = "SpeakText"
-SHORTCUT_ID = "dictate"
-SHORTCUT_TRIGGER = "CTRL+ALT+space"
-CANCEL_SHORTCUT_ID = "cancel"
-CANCEL_SHORTCUT_TRIGGER = "CTRL+ALT+x"
 MODEL_NAME = "ggml-base.en.bin"
 MODEL_URL = (
     "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/"
@@ -34,10 +30,8 @@ def _xdg_path(variable: str, fallback: str) -> Path:
 
 
 DATA_DIR = _xdg_path("XDG_DATA_HOME", ".local/share") / "speaktext"
-CONFIG_DIR = _xdg_path("XDG_CONFIG_HOME", ".config") / "speaktext"
 STATE_DIR = _xdg_path("XDG_STATE_HOME", ".local/state") / "speaktext"
 MODEL_PATH = DATA_DIR / "models" / MODEL_NAME
-CONFIG_PATH = CONFIG_DIR / "config.json"
 LOG_PATH = STATE_DIR / "speaktext.log"
 
 

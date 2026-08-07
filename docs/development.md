@@ -36,18 +36,19 @@ make run
 ```
 
 First run downloads `ggml-base.en.bin`, checks its pinned SHA-256 digest, and
-stores it in the XDG data directory. GNOME then presents the shortcut and
-keyboard-only permission dialogs.
+stores it in the XDG data directory. While SpeakText is running, add it as a
+GNOME input source. No Global Shortcuts or Remote Desktop permission is
+requested.
 
 ## Automated tests
 
-Run all tests that avoid microphone and portal side effects:
+Run all tests that avoid microphone and live IBus side effects:
 
 ```powershell
 make test
 ```
 
-The ordinary suite uses fakes for PipeWire, portals, keyboard injection,
+The ordinary suite uses fakes for PipeWire, IBus gestures and insertion,
 clipboard access, and worker inference. The native integration test is skipped
 unless a model path is supplied:
 
@@ -74,7 +75,7 @@ gnome-extensions pack --force --out-dir /tmp extension
 cmake --build build --target speaktext-worker
 ```
 
-Portal and microphone validation is intentionally manual; use
+IBus and microphone validation is intentionally manual; use
 [acceptance-testing.md](acceptance-testing.md) in an attended GNOME session.
 
 ## Isolated installation smoke test
@@ -121,7 +122,7 @@ running process continues using its previous worker until SpeakText restarts.
 
 - Add or update tests for behaviour changes.
 - Build the native worker after C++ or CMake changes.
-- Run the acceptance checklist after portal, shortcut, audio, clipboard, or
+- Run the acceptance checklist after IBus, gesture, audio, clipboard, or
   insertion changes.
 - Check that new diagnostics cannot contain PCM or transcript content.
 - Update architecture and privacy documentation when interfaces, permissions,

@@ -9,36 +9,38 @@ in an unattended session.
    the settings window.
 2. Start SpeakText from the top-bar menu; confirm model download progress and
    its checksum check.
-3. Approve the `CTRL+ALT+space` dictation and `CTRL+ALT+x` cancellation global
-   shortcuts. Complete the first dictation, then approve the keyboard-only
-   remote-control request when insertion begins. Confirm that no screen or
-   pointer sharing is requested.
+3. While SpeakText is running, add **SpeakText** as an input source in GNOME
+   Settings and select it. Confirm no Global Shortcuts or Remote Desktop prompt
+   and no orange remote-access indicator appears.
 4. Confirm the top-bar icon and status text follow Ready, Recording,
    Transcribing, Inserting, and Error states without routine desktop
    notifications.
 5. In GNOME Text Editor, Firefox, VS Code, and Ptyxis, place the cursor in an
-   editable area, hold the shortcut, speak for five to ten seconds, release it,
-   and confirm insertion at the current cursor. Confirm GNOME's orange
-   remote-access indicator appears only around insertion and clears after its
-   minimum display period rather than remaining for the application lifetime.
+   editable area, rapidly tap either Shift key twice, speak for five to ten
+   seconds, double-tap Shift again, and confirm insertion at the current cursor.
 6. Start a recording, choose **Cancel recording** from the top-bar menu, and
    confirm immediate return to Ready with no transcription, insertion, or
-   clipboard change. Repeat with the button in the SpeakText window, then with
-   the cancellation shortcut while still holding push-to-talk.
-7. Dictate punctuation and Unicode words such as “café”; confirm correct text
-   and that newline handling produces an Enter key event.
-8. Change focus immediately after release; confirm insertion follows the newly
-   focused cursor as documented.
-9. Revoke remote-control permission and dictate again; confirm the transcript
-   is copied and a notification explains the fallback. Confirm **Copy last
-   transcript** works from the top-bar menu without displaying the text there.
+   clipboard change. Repeat with the button in the SpeakText window, then start
+   another recording and tap Shift once. Confirm cancellation occurs only after
+   the short double-tap window expires.
+7. Dictate punctuation, a newline, and Unicode words such as “café”; confirm the
+   committed text is correct.
+8. Change focus while recording; confirm the recording is cancelled. Finish a
+   new recording, then change focus during transcription; confirm insertion
+   follows the newly focused IBus context as documented.
+9. Switch away from the SpeakText input source, double-tap Shift, and confirm
+   recording does not start. Finish a recording in an editable context, then
+   deactivate the SpeakText input source before transcription finishes;
+   confirm the transcript is copied and a notification explains the fallback.
+   Confirm **Copy last transcript** works from the top-bar menu without
+   displaying it.
 10. Disconnect or mute the microphone, dictate silence, rapidly repeat the
-   shortcut, and quit during recording and transcription. Confirm recovery with
+   gesture, and quit during recording and transcription. Confirm recovery with
    no crash or stale recording.
-11. Hold the shortcut for two minutes; confirm automatic stop and transcription.
-12. Restart SpeakText and dictate again; confirm the on-demand session restores
-    permission without screen capture, refreshes the single-use token, and
-    closes after insertion.
+11. Leave a recording active for two minutes; confirm automatic stop and
+    transcription.
+12. Restart SpeakText and dictate again; confirm IBus insertion remains
+    available without a Remote Desktop prompt.
 13. Search `$XDG_CONFIG_HOME`, `$XDG_STATE_HOME`, and `/tmp` for distinctive
     dictated words. Confirm that neither transcripts nor PCM data were written.
 

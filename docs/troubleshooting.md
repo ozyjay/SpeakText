@@ -33,22 +33,21 @@ cannot recover. Do not remove the repository or model directories.
   attended diagnostic session; it emits binary audio to the terminal and must
   be stopped with `Ctrl+C`.
 
-## Shortcut does not activate
+## Shift gesture does not activate
 
 - Reopen SpeakText and use **Retry setup**.
-- Review both bindings in GNOME's global-shortcut permission dialog. The
-  cancellation shortcut is optional; the application reports **Not bound** if
-  it was declined.
-- Choose another binding if `CTRL+ALT+space` conflicts with an input method.
-- If activation is received but release is not, enable **Toggle-mode fallback**
-  and press once to start and once to stop.
+- Start SpeakText before opening GNOME Settings, add **SpeakText** under
+  Keyboard → Input Sources, and select it.
+- Focus an editable text control. The engine deliberately receives no gesture
+  outside an active IBus text context.
+- Tap Shift twice within about 350 ms. Double-tap again to finish, or tap once
+  while recording to cancel.
 
 ## Text is copied instead of inserted
 
-Keyboard-only Remote Desktop permission is missing or was revoked. Restart
-SpeakText, complete a dictation, and approve keyboard access when insertion
-begins. Clipboard fallback is expected while the on-demand portal session is
-unavailable.
+Select **SpeakText** in GNOME's input-source menu and keep an editable field
+focused until transcription finishes. Clipboard fallback is expected if that
+IBus context disappears after recording starts.
 
 ## Text appears in the wrong application
 
@@ -66,7 +65,7 @@ content.
 
 Closing the window hides it by design. Launch SpeakText again to reopen the
 single existing instance, then choose **Quit SpeakText** from the top-bar menu
-to stop the worker and portal sessions.
+to stop the worker and IBus service.
 
 ## Top-bar icon is missing
 

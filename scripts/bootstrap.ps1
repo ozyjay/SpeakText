@@ -40,21 +40,16 @@ Test-Command g++ gcc-c++
 Test-Command git git
 
 if ($null -eq $python3) {
-    $missing.AddRange([string[]] @("python3-gobject", "gtk4", "libadwaita"))
+    $missing.AddRange([string[]] @("python3-gobject", "gtk4", "libadwaita", "ibus"))
 }
 else {
     $gtkCheck =
         "import gi; gi.require_version('Gtk', '4.0'); " +
-        "gi.require_version('Adw', '1')"
+        "gi.require_version('Adw', '1'); gi.require_version('IBus', '1.0')"
     & $python3.Source -c $gtkCheck *> $null
     if ($LASTEXITCODE -ne 0) {
-        $missing.AddRange([string[]] @("python3-gobject", "gtk4", "libadwaita"))
+        $missing.AddRange([string[]] @("python3-gobject", "gtk4", "libadwaita", "ibus"))
     }
-}
-
-$ldconfigOutput = & ldconfig -p 2>$null
-if (-not ($ldconfigOutput -match "libxkbcommon\.so")) {
-    $missing.Add("libxkbcommon")
 }
 
 if ($missing.Count -gt 0) {

@@ -4,13 +4,13 @@
 
 SpeakText is a GTK/libadwaita application with a persistent native
 `whisper.cpp` worker and a small GNOME Shell status extension. Dictation and
-portal integration remain in Python; model inference remains in the C++ worker.
+IBus integration remains in Python; model inference remains in the C++ worker.
 
 ```text
 GNOME top-bar extension ◄── content-free D-Bus status/control ──► GTK app
                                                                │
-Global Shortcuts portal
-        │ Activated / Deactivated
+Active SpeakText IBus context
+        │ double-Shift / single-Shift gesture
         ▼
 DictationCoordinator ──► AudioCapture ──► pw-record ──► PipeWire microphone
         │                       │
@@ -19,15 +19,15 @@ DictationCoordinator ──► AudioCapture ──► pw-record ──► PipeWi
 TranscriptionWorker ── framed pipes ──► speaktext-worker ──► Whisper model
         │
         ▼
-TextInjector ──► Remote Desktop keyboard portal ──► current Wayland cursor
+IBusTextInjector ──► active IBus text context ──► current Wayland cursor
         │
-        └── failure before insertion ──► Wayland clipboard + notification
+        └── inactive input method ──► Wayland clipboard + notification
 ```
 
 The Shell extension receives the state, a content-free status message, and a
 boolean indicating whether recovery text is available. It never receives PCM
 or transcript text and cannot start dictation or access the microphone,
-portals, worker, or clipboard. It can request cancellation, but the Python
+IBus, worker, or clipboard. It can request cancellation, but the Python
 application forwards that request to the coordinator, which remains the sole
 owner of the state transition.
 
@@ -45,8 +45,8 @@ Starting → Ready → Recording → Transcribing → Inserting → Ready
 
 - Activation is accepted only in `Ready`.
 - Repeated activation while busy is ignored.
-- Releasing the shortcut stops recording; a two-minute timer provides a hard
-  stop if release is never reported.
+- A second rapid double-tap stops recording; a two-minute timer provides a hard
+  stop if no finishing gesture is received.
 - Cancelling stops microphone capture, discards its in-memory PCM, and returns
   directly to `Ready` without transcription or insertion.
 - Recordings shorter than 300 ms and empty PCM buffers are discarded.
@@ -72,43 +72,31 @@ one request at a time:
 The coordinator enforces a 120-second recording limit. The worker accepts up to
 125 seconds to tolerate PipeWire's shutdown tail.
 
-## Portal sessions
+## IBus input context
 
-SpeakText opens a dedicated, unsandboxed D-Bus connection for portal traffic
-and registers `local.SpeakText` with the host portal registry before making any
-portal request. Global Shortcuts and Remote Desktop share that registered
-connection. Keeping it separate from GTK's shared bus connection ensures no
-toolkit portal request can race ahead of registration. Older portal versions
-without the registry fall back to their automatic application identification.
+SpeakText dynamically registers an IBus engine for the lifetime of the
+application. The user adds and selects **SpeakText** as a GNOME input source
+while the application is running. The engine passes ordinary key events
+through unchanged.
 
-`GlobalShortcutPortal` creates a session and requests shortcut ID `dictate`
-with preferred trigger `CTRL+ALT+space`, plus shortcut ID `cancel` with
-preferred trigger `CTRL+ALT+x`. GNOME owns the final bindings and emits
-activation and deactivation signals. Cancel acts only on activation and only
-while recording. Toggle mode is available when a compositor does not emit
-release reliably.
+On Shift key release, the engine recognises a 350 ms double-tap window. A
+double-tap starts or finishes recording. While recording, a single tap cancels
+after that window expires. Because IBus sends these events only to the selected
+engine with an active input context, the gesture cannot start microphone
+capture when SpeakText has nowhere to insert text. Losing that context while
+recording cancels and discards the recording immediately.
 
-After `TextInjector` has preflighted the complete transcript,
-`KeyboardPortal` opens a Remote Desktop session and requests device type
-`1`—keyboard only—with persistence mode `2`. Each successful restoration
-returns a new single-use token, which replaces the previous token in the
-private settings file. The session closes immediately after insertion or an
-insertion failure. No Remote Desktop session is held while SpeakText is idle,
-and no screen, pointer, or touchscreen source is selected.
+When that context remains active at transcription completion,
+`IBusTextInjector` commits the completed UTF-8 transcript directly. No Global
+Shortcuts or Remote Desktop portal session and no synthetic keyboard event is
+used.
 
 ## Insertion and recovery
 
-`TextInjector` converts the complete transcript to XKB keysyms before sending
-anything, then acquires keyboard access for that insertion only. Newlines map
-to `Return` and tabs map to `Tab`.
+`IBusTextInjector` commits the complete transcript as one text operation.
 
-- If permission is unavailable or preflight fails, the complete transcript is
-  copied to the clipboard.
-- If the first portal call fails, clipboard fallback is still safe.
-- If any keyboard event has already been sent, the result is marked partial and
-  is not retried. The full transcript remains in memory for explicit copying.
-- The keyboard portal session closes after every insertion attempt, including
-  permission and key-event failures.
+- If the SpeakText input method is not active in an editable context, the
+  complete transcript is copied to the clipboard.
 - Successful insertion clears the in-memory recovery transcript.
 
 Wayland deliberately prevents SpeakText from discovering or restoring the
@@ -118,7 +106,6 @@ transcription completes.
 ## Stored paths
 
 - Model: `$XDG_DATA_HOME/speaktext/models/ggml-base.en.bin`
-- Settings: `$XDG_CONFIG_HOME/speaktext/config.json`, mode `0600`
 - Diagnostics: `$XDG_STATE_HOME/speaktext/speaktext.log`
 - User-local worker: `~/.local/libexec/speaktext/speaktext-worker`
 - GNOME extension:

@@ -145,3 +145,4 @@ else {
 }
 
 Write-Output "Installed SpeakText for the current user ($extensionStatus). Run: $launcherPath"
+Write-Output "Start SpeakText, then add it in GNOME Settings > Keyboard > Input Sources."

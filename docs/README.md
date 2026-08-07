@@ -8,7 +8,7 @@
   and local installation checks.
 - [Privacy and security](privacy.md): data handling, permissions, persistence,
   and logging rules.
-- [Troubleshooting](troubleshooting.md): model, microphone, shortcut, insertion,
+- [Troubleshooting](troubleshooting.md): model, microphone, gesture, insertion,
   clipboard, and startup problems.
 - [Acceptance testing](acceptance-testing.md): attended Fedora 44 GNOME Wayland
   verification.

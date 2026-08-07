@@ -9,9 +9,10 @@ in an unattended session.
    the settings window.
 2. Start SpeakText from the top-bar menu; confirm model download progress and
    its checksum check.
-3. Approve the `CTRL+ALT+space` global shortcut. Complete the first dictation,
-   then approve the keyboard-only remote-control request when insertion begins.
-   Confirm that no screen or pointer sharing is requested.
+3. Approve the `CTRL+ALT+space` dictation and `CTRL+ALT+x` cancellation global
+   shortcuts. Complete the first dictation, then approve the keyboard-only
+   remote-control request when insertion begins. Confirm that no screen or
+   pointer sharing is requested.
 4. Confirm the top-bar icon and status text follow Ready, Recording,
    Transcribing, Inserting, and Error states without routine desktop
    notifications.
@@ -22,7 +23,8 @@ in an unattended session.
    minimum display period rather than remaining for the application lifetime.
 6. Start a recording, choose **Cancel recording** from the top-bar menu, and
    confirm immediate return to Ready with no transcription, insertion, or
-   clipboard change. Repeat with the button in the SpeakText window.
+   clipboard change. Repeat with the button in the SpeakText window, then with
+   the cancellation shortcut while still holding push-to-talk.
 7. Dictate punctuation and Unicode words such as “café”; confirm correct text
    and that newline handling produces an Enter key event.
 8. Change focus immediately after release; confirm insertion follows the newly

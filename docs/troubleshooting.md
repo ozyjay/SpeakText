@@ -36,7 +36,9 @@ cannot recover. Do not remove the repository or model directories.
 ## Shortcut does not activate
 
 - Reopen SpeakText and use **Retry setup**.
-- Review the binding in GNOME's global-shortcut permission dialog.
+- Review both bindings in GNOME's global-shortcut permission dialog. The
+  cancellation shortcut is optional; the application reports **Not bound** if
+  it was declined.
 - Choose another binding if `CTRL+ALT+space` conflicts with an input method.
 - If activation is received but release is not, enable **Toggle-mode fallback**
   and press once to start and once to stop.

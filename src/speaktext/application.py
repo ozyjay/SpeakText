@@ -13,7 +13,14 @@ from gi.repository import Adw, Gio, GLib, Gtk  # noqa: E402
 
 from .audio import AudioCapture
 from .config import SettingsStore
-from .constants import APP_ID, APP_NAME, MODEL_PATH, SHORTCUT_TRIGGER, worker_path
+from .constants import (
+    APP_ID,
+    APP_NAME,
+    CANCEL_SHORTCUT_TRIGGER,
+    MODEL_PATH,
+    SHORTCUT_TRIGGER,
+    worker_path,
+)
 from .control import ControlService
 from .coordinator import DictationCoordinator, DictationState
 from .injector import ClipboardFallback, TextInjector
@@ -49,6 +56,7 @@ class SpeakTextApplication(Adw.Application):
         self.window: Adw.ApplicationWindow | None = None
         self.status_label: Gtk.Label | None = None
         self.shortcut_label: Gtk.Label | None = None
+        self.cancel_shortcut_label: Gtk.Label | None = None
         self.progress: Gtk.ProgressBar | None = None
         self.copy_button: Gtk.Button | None = None
         self.cancel_button: Gtk.Button | None = None
@@ -124,6 +132,14 @@ class SpeakTextApplication(Adw.Application):
         shortcut_row.add_suffix(self.shortcut_label)
         shortcut_group.add(shortcut_row)
 
+        cancel_shortcut_row = Adw.ActionRow(
+            title="Cancel shortcut",
+            subtitle="Discard an active recording without transcribing it",
+        )
+        self.cancel_shortcut_label = Gtk.Label(label=CANCEL_SHORTCUT_TRIGGER)
+        cancel_shortcut_row.add_suffix(self.cancel_shortcut_label)
+        shortcut_group.add(cancel_shortcut_row)
+
         self.mode_switch = Adw.SwitchRow(
             title="Toggle-mode fallback",
             subtitle=(
@@ -197,6 +213,7 @@ class SpeakTextApplication(Adw.Application):
         self.shortcut_portal.initialise(
             self._shortcut_activated,
             self._shortcut_deactivated,
+            self._cancel_recording,
             self._shortcut_ready,
             self._shortcut_error,
         )
@@ -248,11 +265,15 @@ class SpeakTextApplication(Adw.Application):
                 )
         return GLib.SOURCE_REMOVE
 
-    def _shortcut_ready(self, description: str) -> None:
-        LOGGER.info("global shortcut ready")
+    def _shortcut_ready(
+        self, dictation_description: str, cancel_description: str
+    ) -> None:
+        LOGGER.info("global shortcuts ready")
         self._shortcut_failed = False
         if self.shortcut_label:
-            self.shortcut_label.set_label(description)
+            self.shortcut_label.set_label(dictation_description)
+        if self.cancel_shortcut_label:
+            self.cancel_shortcut_label.set_label(cancel_description)
         if self.retry_button and self.coordinator is not None:
             self.retry_button.set_sensitive(False)
 
@@ -318,6 +339,7 @@ class SpeakTextApplication(Adw.Application):
                 self.shortcut_portal.initialise(
                     self._shortcut_activated,
                     self._shortcut_deactivated,
+                    self._cancel_recording,
                     self._shortcut_ready,
                     self._shortcut_error,
                 )

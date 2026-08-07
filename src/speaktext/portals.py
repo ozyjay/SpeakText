@@ -8,7 +8,13 @@ from typing import Any
 
 from gi.repository import Gio, GLib
 
-from .constants import APP_ID, SHORTCUT_ID, SHORTCUT_TRIGGER
+from .constants import (
+    APP_ID,
+    CANCEL_SHORTCUT_ID,
+    CANCEL_SHORTCUT_TRIGGER,
+    SHORTCUT_ID,
+    SHORTCUT_TRIGGER,
+)
 
 LOGGER = logging.getLogger(__name__)
 PORTAL_NAME = "org.freedesktop.portal.Desktop"
@@ -170,16 +176,19 @@ class GlobalShortcutPortal:
         self._signal_subscription: int | None = None
         self._activated: Callable[[], None] | None = None
         self._deactivated: Callable[[], None] | None = None
+        self._cancelled: Callable[[], None] | None = None
 
     def initialise(
         self,
         activated: Callable[[], None],
         deactivated: Callable[[], None],
-        on_ready: Callable[[str], None],
+        cancelled: Callable[[], None],
+        on_ready: Callable[[str, str], None],
         on_error: ErrorCallback,
     ) -> None:
         self._activated = activated
         self._deactivated = deactivated
+        self._cancelled = cancelled
         token = self.runner.token("shortcut_create")
         options = {
             "handle_token": GLib.Variant("s", token),
@@ -199,7 +208,7 @@ class GlobalShortcutPortal:
     def _bind(
         self,
         result: PortalResult,
-        on_ready: Callable[[str], None],
+        on_ready: Callable[[str, str], None],
         on_error: ErrorCallback,
     ) -> None:
         session = result.get("session_handle")
@@ -218,7 +227,16 @@ class GlobalShortcutPortal:
                     "description": GLib.Variant("s", "Hold to dictate"),
                     "preferred_trigger": GLib.Variant("s", SHORTCUT_TRIGGER),
                 },
-            )
+            ),
+            (
+                CANCEL_SHORTCUT_ID,
+                {
+                    "description": GLib.Variant("s", "Cancel recording"),
+                    "preferred_trigger": GLib.Variant(
+                        "s", CANCEL_SHORTCUT_TRIGGER
+                    ),
+                },
+            ),
         ]
         parameters = GLib.Variant(
             "(oa(sa{sv})sa{sv})", (session, shortcuts, "", options)
@@ -235,16 +253,28 @@ class GlobalShortcutPortal:
     @staticmethod
     def _bound(
         result: PortalResult,
-        on_ready: Callable[[str], None],
+        on_ready: Callable[[str, str], None],
         on_error: ErrorCallback,
     ) -> None:
         shortcuts = result.get("shortcuts", [])
+        triggers: dict[str, str] = {}
         for shortcut_id, properties in shortcuts:
             if shortcut_id == SHORTCUT_ID:
-                trigger = _value(properties.get("trigger_description", SHORTCUT_TRIGGER))
-                on_ready(str(trigger))
-                return
-        on_error(PortalError("No dictation shortcut was bound"))
+                fallback = SHORTCUT_TRIGGER
+            elif shortcut_id == CANCEL_SHORTCUT_ID:
+                fallback = CANCEL_SHORTCUT_TRIGGER
+            else:
+                continue
+            triggers[shortcut_id] = str(
+                _value(properties.get("trigger_description", fallback))
+            )
+        if SHORTCUT_ID not in triggers:
+            on_error(PortalError("No dictation shortcut was bound"))
+            return
+        on_ready(
+            triggers[SHORTCUT_ID],
+            triggers.get(CANCEL_SHORTCUT_ID, "Not bound"),
+        )
 
     def _subscribe_signals(self) -> None:
         if self._signal_subscription is not None:
@@ -284,11 +314,25 @@ class GlobalShortcutPortal:
             return
 
         session, shortcut_id, _timestamp, _options = values
-        if session != self.session_handle or shortcut_id != SHORTCUT_ID:
+        if session != self.session_handle:
             return
-        if signal == "Activated" and self._activated:
+        if (
+            shortcut_id == CANCEL_SHORTCUT_ID
+            and signal == "Activated"
+            and self._cancelled
+        ):
+            self._cancelled()
+        elif (
+            shortcut_id == SHORTCUT_ID
+            and signal == "Activated"
+            and self._activated
+        ):
             self._activated()
-        elif signal == "Deactivated" and self._deactivated:
+        elif (
+            shortcut_id == SHORTCUT_ID
+            and signal == "Deactivated"
+            and self._deactivated
+        ):
             self._deactivated()
 
     def close(self) -> None:

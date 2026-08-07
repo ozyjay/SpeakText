@@ -82,9 +82,11 @@ toolkit portal request can race ahead of registration. Older portal versions
 without the registry fall back to their automatic application identification.
 
 `GlobalShortcutPortal` creates a session and requests shortcut ID `dictate`
-with preferred trigger `CTRL+ALT+space`. GNOME owns the final binding and emits
-activation and deactivation signals. Toggle mode is available when a
-compositor does not emit release reliably.
+with preferred trigger `CTRL+ALT+space`, plus shortcut ID `cancel` with
+preferred trigger `CTRL+ALT+x`. GNOME owns the final bindings and emits
+activation and deactivation signals. Cancel acts only on activation and only
+while recording. Toggle mode is available when a compositor does not emit
+release reliably.
 
 After `TextInjector` has preflighted the complete transcript,
 `KeyboardPortal` opens a Remote Desktop session and requests device type

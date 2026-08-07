@@ -16,6 +16,8 @@ network request is the first model download.
 - English dictation up to two minutes using `ggml-base.en.bin`.
 - `CTRL+ALT+space` is requested as the default push-to-talk shortcut. GNOME's
   portal dialog owns the final binding.
+- `CTRL+ALT+x` is requested as the default cancellation shortcut. Press it
+  while still holding push-to-talk to discard the recording immediately.
 - A settings switch provides press-once/start, press-again/stop fallback if a
   compositor fails to report shortcut release.
 - Keyboard input opens an XDG Remote Desktop session on demand, with

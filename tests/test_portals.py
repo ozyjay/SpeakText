@@ -5,7 +5,13 @@ from unittest.mock import patch
 
 from gi.repository import Gio, GLib
 
-from speaktext.constants import APP_ID
+from speaktext.constants import (
+    APP_ID,
+    CANCEL_SHORTCUT_ID,
+    CANCEL_SHORTCUT_TRIGGER,
+    SHORTCUT_ID,
+    SHORTCUT_TRIGGER,
+)
 from speaktext.portals import (
     GlobalShortcutPortal,
     HOST_REGISTRY_INTERFACE,
@@ -57,6 +63,33 @@ class UnavailableRegistryConnection(FakeConnection):
 class RejectedRegistryConnection(FakeConnection):
     def call_sync(self, *args: object) -> None:
         raise GLib.Error("connection already associated")
+
+
+class ShortcutConnection(FakeConnection):
+    def signal_subscribe(self, *args: object) -> int:
+        self.calls.append(args)
+        return 1
+
+
+class CapturingShortcutRunner:
+    def __init__(self) -> None:
+        self.connection = ShortcutConnection()
+        self.requests: list[tuple[str, object]] = []
+
+    @staticmethod
+    def token(prefix: str) -> str:
+        return f"{prefix}_token"
+
+    def request(
+        self,
+        _interface: str,
+        method: str,
+        parameters: object,
+        _token: str,
+        _on_success: object,
+        _on_error: object,
+    ) -> None:
+        self.requests.append((method, parameters))
 
 
 class ImmediateKeyboardRunner:
@@ -170,6 +203,96 @@ class PortalTests(unittest.TestCase):
         )
 
         self.assertEqual(events, ["activated", "deactivated"])
+
+    def test_binds_dictation_and_cancel_shortcuts(self) -> None:
+        runner = CapturingShortcutRunner()
+        portal = GlobalShortcutPortal(runner)  # type: ignore[arg-type]
+
+        portal._bind(  # noqa: SLF001
+            {"session_handle": "/org/freedesktop/portal/session/test"},
+            lambda _dictate, _cancel: None,
+            self.fail,
+        )
+
+        self.assertEqual(runner.requests[0][0], "BindShortcuts")
+        parameters = runner.requests[0][1]
+        values = parameters.unpack()  # type: ignore[union-attr]
+        _session, shortcuts, _parent, _options = values
+        properties = dict(shortcuts)
+        self.assertEqual(properties[SHORTCUT_ID]["preferred_trigger"], SHORTCUT_TRIGGER)
+        self.assertEqual(
+            properties[CANCEL_SHORTCUT_ID]["preferred_trigger"],
+            CANCEL_SHORTCUT_TRIGGER,
+        )
+
+    def test_dispatches_cancel_activation_only(self) -> None:
+        portal = GlobalShortcutPortal(object())  # type: ignore[arg-type]
+        portal.session_handle = "/org/freedesktop/portal/desktop/session/test"
+        events: list[str] = []
+        portal._cancelled = lambda: events.append("cancelled")  # noqa: SLF001
+        parameters = FakeParameters(
+            (portal.session_handle, CANCEL_SHORTCUT_ID, 123, {})
+        )
+
+        portal._handle_shortcut_signal(  # type: ignore[arg-type]  # noqa: SLF001
+            "Activated", parameters
+        )
+        portal._handle_shortcut_signal(  # type: ignore[arg-type]  # noqa: SLF001
+            "Deactivated", parameters
+        )
+
+        self.assertEqual(events, ["cancelled"])
+
+    def test_reports_both_bound_shortcuts(self) -> None:
+        ready: list[tuple[str, str]] = []
+        errors: list[Exception] = []
+        result = {
+            "shortcuts": [
+                (
+                    SHORTCUT_ID,
+                    {"trigger_description": GLib.Variant("s", "Ctrl+Alt+Space")},
+                ),
+                (
+                    CANCEL_SHORTCUT_ID,
+                    {"trigger_description": GLib.Variant("s", "Ctrl+Alt+Esc")},
+                ),
+            ]
+        }
+
+        GlobalShortcutPortal._bound(  # noqa: SLF001
+            result,
+            lambda dictate, cancel: ready.append((dictate, cancel)),
+            errors.append,
+        )
+
+        self.assertEqual(ready, [("Ctrl+Alt+Space", "Ctrl+Alt+Esc")])
+        self.assertEqual(errors, [])
+
+    def test_missing_cancel_shortcut_keeps_dictation_available(self) -> None:
+        ready: list[tuple[str, str]] = []
+        errors: list[Exception] = []
+
+        GlobalShortcutPortal._bound(  # noqa: SLF001
+            {"shortcuts": [(SHORTCUT_ID, {})]},
+            lambda dictate, cancel: ready.append((dictate, cancel)),
+            errors.append,
+        )
+
+        self.assertEqual(ready, [(SHORTCUT_TRIGGER, "Not bound")])
+        self.assertEqual(errors, [])
+
+    def test_missing_dictation_shortcut_is_an_error(self) -> None:
+        errors: list[Exception] = []
+
+        GlobalShortcutPortal._bound(  # noqa: SLF001
+            {"shortcuts": [(CANCEL_SHORTCUT_ID, {})]},
+            lambda _dictate, _cancel: self.fail("dictation must be bound"),
+            errors.append,
+        )
+
+        self.assertEqual(len(errors), 1)
+        self.assertIsInstance(errors[0], PortalError)
+        self.assertIn("No dictation shortcut", str(errors[0]))
 
     def test_malformed_activation_signal_is_ignored(self) -> None:
         portal = GlobalShortcutPortal(object())  # type: ignore[arg-type]

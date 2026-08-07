@@ -7,6 +7,8 @@ APP_ID = "local.SpeakText"
 APP_NAME = "SpeakText"
 SHORTCUT_ID = "dictate"
 SHORTCUT_TRIGGER = "CTRL+ALT+space"
+CANCEL_SHORTCUT_ID = "cancel"
+CANCEL_SHORTCUT_TRIGGER = "CTRL+ALT+x"
 MODEL_NAME = "ggml-base.en.bin"
 MODEL_URL = (
     "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/"

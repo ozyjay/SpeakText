@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import unittest
+from unittest.mock import patch
 
-from gi.repository import GLib
+from gi.repository import Gio, GLib
 
 from speaktext.constants import APP_ID
 from speaktext.portals import (
@@ -46,7 +47,16 @@ class FakeConnection:
 
 class UnavailableRegistryConnection(FakeConnection):
     def call_sync(self, *args: object) -> None:
-        raise GLib.Error("registry unavailable")
+        raise GLib.Error.new_literal(
+            Gio.dbus_error_quark(),
+            "registry unavailable",
+            Gio.DBusError.UNKNOWN_METHOD,
+        )
+
+
+class RejectedRegistryConnection(FakeConnection):
+    def call_sync(self, *args: object) -> None:
+        raise GLib.Error("connection already associated")
 
 
 class ImmediateKeyboardRunner:
@@ -85,6 +95,19 @@ class ImmediateKeyboardRunner:
 
 
 class PortalTests(unittest.TestCase):
+    def test_uses_dedicated_connection_by_default(self) -> None:
+        connection = FakeConnection()
+
+        with patch(
+            "speaktext.portals._new_session_bus_connection",
+            return_value=connection,
+        ) as new_connection:
+            runner = PortalRequestRunner()
+
+        new_connection.assert_called_once_with()
+        self.assertIs(runner.connection, connection)
+        self.assertEqual(connection.calls[0][3], "Register")
+
     def test_request_path_uses_dbus_unique_name(self) -> None:
         runner = PortalRequestRunner(FakeConnection())  # type: ignore[arg-type]
         self.assertEqual(
@@ -112,6 +135,14 @@ class PortalTests(unittest.TestCase):
             )
 
         self.assertIn("host portal app registration unavailable", logs.output[0])
+
+    def test_registration_failure_is_not_silently_ignored(self) -> None:
+        with self.assertRaisesRegex(
+            PortalError, "Could not register desktop portal app ID"
+        ):
+            PortalRequestRunner(  # type: ignore[arg-type]
+                RejectedRegistryConnection()
+            )
 
     def test_ignores_shortcuts_changed_signal_before_unpacking(self) -> None:
         portal = GlobalShortcutPortal(object())  # type: ignore[arg-type]

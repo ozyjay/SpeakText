@@ -28,6 +28,16 @@ class PortalError(RuntimeError):
     pass
 
 
+def _new_session_bus_connection() -> Gio.DBusConnection:
+    """Open an unshared bus connection reserved for portal traffic."""
+    address = Gio.dbus_address_get_for_bus_sync(Gio.BusType.SESSION, None)
+    flags = (
+        Gio.DBusConnectionFlags.AUTHENTICATION_CLIENT
+        | Gio.DBusConnectionFlags.MESSAGE_BUS_CONNECTION
+    )
+    return Gio.DBusConnection.new_for_address_sync(address, flags, None, None)
+
+
 def _value(value: Any) -> Any:
     return value.unpack() if isinstance(value, GLib.Variant) else value
 
@@ -36,7 +46,10 @@ class PortalRequestRunner:
     """Run asynchronous portal requests without racing the Response signal."""
 
     def __init__(self, connection: Gio.DBusConnection | None = None) -> None:
-        self.connection = connection or Gio.bus_get_sync(Gio.BusType.SESSION, None)
+        # Gio.bus_get_sync() returns a process-wide shared connection. GTK may
+        # have already made a portal call on it, which permanently prevents the
+        # host registry from associating an application ID with that peer.
+        self.connection = connection or _new_session_bus_connection()
         self._register_host_app()
 
     def _register_host_app(self) -> None:
@@ -55,7 +68,16 @@ class PortalRequestRunner:
         except GLib.Error as error:
             # Older portal versions may not provide the host registry. They can
             # still identify conventionally launched applications themselves.
-            LOGGER.warning("host portal app registration unavailable: %s", error.message)
+            if error.matches(
+                Gio.dbus_error_quark(), Gio.DBusError.UNKNOWN_METHOD
+            ):
+                LOGGER.warning(
+                    "host portal app registration unavailable: %s", error.message
+                )
+                return
+            raise PortalError(
+                f"Could not register desktop portal app ID: {error.message}"
+            ) from error
 
     def token(self, prefix: str) -> str:
         return f"{prefix}_{secrets.token_hex(8)}"

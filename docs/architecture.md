@@ -68,10 +68,12 @@ The coordinator enforces a 120-second recording limit. The worker accepts up to
 
 ## Portal sessions
 
-SpeakText registers `local.SpeakText` on its unsandboxed D-Bus connection with
-the host portal registry before making any portal request. Global Shortcuts and
-Remote Desktop share that registered connection. Older portal versions without
-the registry fall back to their automatic application identification.
+SpeakText opens a dedicated, unsandboxed D-Bus connection for portal traffic
+and registers `local.SpeakText` with the host portal registry before making any
+portal request. Global Shortcuts and Remote Desktop share that registered
+connection. Keeping it separate from GTK's shared bus connection ensures no
+toolkit portal request can race ahead of registration. Older portal versions
+without the registry fall back to their automatic application identification.
 
 `GlobalShortcutPortal` creates a session and requests shortcut ID `dictate`
 with preferred trigger `CTRL+ALT+space`. GNOME owns the final binding and emits

@@ -22,6 +22,7 @@ from .model import ModelManager
 from .portals import (
     GlobalShortcutPortal,
     KeyboardPortal,
+    PortalError,
     PortalRequestRunner,
 )
 from .worker import TranscriptionWorker
@@ -178,11 +179,11 @@ class SpeakTextApplication(Adw.Application):
 
     def _initialise_services(self) -> bool:
         try:
-            self.portal_runner = PortalRequestRunner(self.get_dbus_connection())
+            self.portal_runner = PortalRequestRunner()
             self.shortcut_portal = GlobalShortcutPortal(self.portal_runner)
             self.keyboard_portal = KeyboardPortal(self.portal_runner)
-        except GLib.Error as error:
-            self._setup_error(f"Could not connect to desktop portals: {error.message}")
+        except (GLib.Error, PortalError) as error:
+            self._setup_error(f"Could not connect to desktop portals: {error}")
             return GLib.SOURCE_REMOVE
 
         self.shortcut_portal.initialise(

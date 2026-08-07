@@ -24,6 +24,7 @@ const CONTROL_XML = `
     <method name="CopyLastTranscript">
       <arg name="copied" type="b" direction="out"/>
     </method>
+    <method name="CancelRecording"/>
     <method name="Quit"/>
     <signal name="StatusChanged">
       <arg name="state" type="s"/>
@@ -66,6 +67,10 @@ class SpeakTextIndicator extends PanelMenu.Button {
         this._openItem = this.menu.addAction('Open SpeakText', () => {
             this._activateWindow();
         });
+        this._cancelItem = this.menu.addAction('Cancel recording', () => {
+            this._cancelRecording();
+        });
+        this._cancelItem.setSensitive(false);
         this._copyItem = this.menu.addAction('Copy last transcript', () => {
             this._copyLastTranscript();
         });
@@ -102,6 +107,8 @@ class SpeakTextIndicator extends PanelMenu.Button {
             return;
         const running = Boolean(this._proxy.get_name_owner());
         this._quitItem.setSensitive(running);
+        if (!running)
+            this._cancelItem.setSensitive(false);
         if (running) {
             this._openItem.label.text = 'Open SpeakText';
             this._refreshStatus();
@@ -127,6 +134,7 @@ class SpeakTextIndicator extends PanelMenu.Button {
     _setStatus(state, message, canCopy) {
         this._icon.icon_name = ICONS[state] ?? ICONS.Error;
         this._statusItem.label.text = message || state;
+        this._cancelItem.setSensitive(state === 'Recording');
         this._copyItem.setSensitive(canCopy);
         this.accessible_name = `SpeakText: ${state}`;
     }
@@ -160,6 +168,15 @@ class SpeakTextIndicator extends PanelMenu.Button {
         this._proxy.CopyLastTranscriptRemote((_result, error) => {
             if (error)
                 this._logger.warn(`Could not copy transcript: ${error.message}`);
+        });
+    }
+
+    _cancelRecording() {
+        if (!this._proxy?.get_name_owner())
+            return;
+        this._proxy.CancelRecordingRemote((_result, error) => {
+            if (error)
+                this._logger.warn(`Could not cancel recording: ${error.message}`);
         });
     }
 

@@ -24,10 +24,12 @@ TextInjector ──► Remote Desktop keyboard portal ──► current Wayland 
         └── failure before insertion ──► Wayland clipboard + notification
 ```
 
-The Shell extension is presentation-only. It receives the state, a
-content-free status message, and a boolean indicating whether recovery text is
-available. It never receives PCM or transcript text and cannot initiate a
-dictation state transition.
+The Shell extension receives the state, a content-free status message, and a
+boolean indicating whether recovery text is available. It never receives PCM
+or transcript text and cannot start dictation or access the microphone,
+portals, worker, or clipboard. It can request cancellation, but the Python
+application forwards that request to the coordinator, which remains the sole
+owner of the state transition.
 
 ## Application state
 
@@ -37,12 +39,16 @@ dictation state transition.
 Starting → Ready → Recording → Transcribing → Inserting → Ready
                    │              │              │
                    └──────────────┴──────────────┴──► Error → Ready
+                   │
+                   └── cancel → Ready
 ```
 
 - Activation is accepted only in `Ready`.
 - Repeated activation while busy is ignored.
 - Releasing the shortcut stops recording; a two-minute timer provides a hard
   stop if release is never reported.
+- Cancelling stops microphone capture, discards its in-memory PCM, and returns
+  directly to `Ready` without transcription or insertion.
 - Recordings shorter than 300 ms and empty PCM buffers are discarded.
 - Runtime errors are reported and return to `Ready`; model-startup failures stay
   visible until setup is retried.

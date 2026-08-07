@@ -19,6 +19,7 @@ CONTROL_XML = f"""
     <method name="CopyLastTranscript">
       <arg name="copied" type="b" direction="out"/>
     </method>
+    <method name="CancelRecording"/>
     <method name="Quit"/>
     <signal name="StatusChanged">
       <arg name="state" type="s"/>
@@ -38,11 +39,13 @@ class ControlService:
         connection: Gio.DBusConnection,
         activate_window: Callable[[], None],
         copy_last_transcript: Callable[[], bool],
+        cancel_recording: Callable[[], None],
         quit_application: Callable[[], None],
     ) -> None:
         self.connection = connection
         self.activate_window = activate_window
         self.copy_last_transcript = copy_last_transcript
+        self.cancel_recording = cancel_recording
         self.quit_application = quit_application
         self.state = "Starting"
         self.message = "Preparing local speech recognition…"
@@ -100,6 +103,9 @@ class ControlService:
             invocation.return_value(
                 GLib.Variant("(b)", (bool(self.copy_last_transcript()),))
             )
+        elif method_name == "CancelRecording":
+            invocation.return_value(None)
+            GLib.idle_add(self._run_void_callback, self.cancel_recording)
         elif method_name == "Quit":
             invocation.return_value(None)
             GLib.idle_add(self._run_void_callback, self.quit_application)
@@ -113,4 +119,3 @@ class ControlService:
     def _run_void_callback(callback: Callable[[], None]) -> bool:
         callback()
         return GLib.SOURCE_REMOVE
-

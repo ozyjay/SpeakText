@@ -51,6 +51,7 @@ class SpeakTextApplication(Adw.Application):
         self.shortcut_label: Gtk.Label | None = None
         self.progress: Gtk.ProgressBar | None = None
         self.copy_button: Gtk.Button | None = None
+        self.cancel_button: Gtk.Button | None = None
         self.retry_button: Gtk.Button | None = None
         self.mode_switch: Adw.SwitchRow | None = None
         self.settings_store = SettingsStore()
@@ -80,6 +81,7 @@ class SpeakTextApplication(Adw.Application):
                 connection,
                 self.activate,
                 self._copy_last_transcript,
+                self._cancel_recording,
                 self.quit,
             )
 
@@ -149,6 +151,12 @@ class SpeakTextApplication(Adw.Application):
         self.retry_button.set_sensitive(False)
         self.retry_button.connect("clicked", lambda *_args: self._retry_setup())
         actions.append(self.retry_button)
+        self.cancel_button = Gtk.Button(label="Cancel recording")
+        self.cancel_button.set_sensitive(False)
+        self.cancel_button.connect(
+            "clicked", lambda *_args: self._cancel_recording()
+        )
+        actions.append(self.cancel_button)
         self.copy_button = Gtk.Button(label="Copy last transcript")
         self.copy_button.set_sensitive(False)
         self.copy_button.connect("clicked", lambda *_args: self._copy_last_transcript())
@@ -281,6 +289,8 @@ class SpeakTextApplication(Adw.Application):
         can_copy = bool(self.coordinator and self.coordinator.last_transcript)
         if self.status_label:
             self.status_label.set_label(message)
+        if self.cancel_button:
+            self.cancel_button.set_sensitive(state is DictationState.RECORDING)
         if self.copy_button:
             self.copy_button.set_sensitive(can_copy)
         if self.control_service:
@@ -315,6 +325,13 @@ class SpeakTextApplication(Adw.Application):
                 self._shortcut_error(error)
         if self.coordinator is None:
             self._model_task = self.loop.create_task(self._prepare_model_and_worker())
+
+    def _cancel_recording(self) -> None:
+        if (
+            self.coordinator
+            and self.coordinator.state is DictationState.RECORDING
+        ):
+            self.loop.create_task(self.coordinator.cancel_recording())
 
     def _copy_last_transcript(self) -> bool:
         if not self.coordinator or not self.coordinator.last_transcript:

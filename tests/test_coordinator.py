@@ -112,6 +112,22 @@ class CoordinatorTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(self.capture.cancelled, 1)
         self.assertEqual(self.recogniser.stopped, 1)
 
+    async def test_cancel_discards_active_recording(self) -> None:
+        await self.coordinator.activate()
+
+        cancelled = await self.coordinator.cancel_recording()
+
+        self.assertTrue(cancelled)
+        self.assertEqual(self.capture.cancelled, 1)
+        self.assertEqual(self.capture.stopped, 0)
+        self.assertEqual(self.injector.values, [])
+        self.assertEqual(self.coordinator.state, DictationState.READY)
+        self.assertEqual(self.states[-1][1], "Recording cancelled")
+
+    async def test_cancel_is_ignored_when_not_recording(self) -> None:
+        self.assertFalse(await self.coordinator.cancel_recording())
+        self.assertEqual(self.capture.cancelled, 0)
+
     async def test_runtime_error_reports_then_recovers_ready_state(self) -> None:
         await self.coordinator.shutdown()
         self.recogniser = FailingRecogniser()

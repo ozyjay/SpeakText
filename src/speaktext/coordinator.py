@@ -100,6 +100,21 @@ class DictationCoordinator:
                 return
             await self._finish_recording()
 
+    async def cancel_recording(self) -> bool:
+        async with self._operation_lock:
+            if self.state is not DictationState.RECORDING:
+                return False
+            if self._limit_task:
+                self._limit_task.cancel()
+                self._limit_task = None
+            try:
+                await self.capture.cancel()
+            except Exception as error:
+                self._fail(f"Could not cancel microphone capture: {error}")
+                return False
+            self._set_state(DictationState.READY, "Recording cancelled")
+            return True
+
     async def _finish_recording(self) -> None:
         if self._limit_task and self._limit_task is not asyncio.current_task():
             self._limit_task.cancel()

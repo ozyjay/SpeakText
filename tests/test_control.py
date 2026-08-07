@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import unittest
+from unittest.mock import patch
 
 from speaktext.control import CONTROL_INTERFACE, CONTROL_PATH, ControlService
 
@@ -50,11 +51,13 @@ class ControlServiceTests(unittest.TestCase):
         self.connection = FakeConnection()
         self.activated = 0
         self.copied = 0
+        self.cancelled = 0
         self.quit = 0
         self.service = ControlService(
             self.connection,  # type: ignore[arg-type]
             lambda: setattr(self, "activated", self.activated + 1),
             self._copy,
+            lambda: setattr(self, "cancelled", self.cancelled + 1),
             lambda: setattr(self, "quit", self.quit + 1),
         )
 
@@ -95,7 +98,16 @@ class ControlServiceTests(unittest.TestCase):
         self.service.close()
         self.assertEqual(self.connection.unregistered, [42])
 
+    def test_cancel_recording_action(self) -> None:
+        with patch(
+            "speaktext.control.GLib.idle_add",
+            side_effect=lambda callback, *args: callback(*args),
+        ):
+            invocation = self.call("CancelRecording")
+
+        self.assertIsNone(invocation.value)
+        self.assertEqual(self.cancelled, 1)
+
 
 if __name__ == "__main__":
     unittest.main()
-

@@ -19,9 +19,10 @@ The symbolic icon follows the application state:
 | Error | Setup or dictation needs attention |
 | Disconnected | The application is not running |
 
-Its menu can open or start SpeakText, copy an explicitly retained recovery
-transcript, and quit the application. Copying is performed inside the Python
-process; the text is not returned to the extension.
+Its menu can open or start SpeakText, cancel an active recording, copy an
+explicitly retained recovery transcript, and quit the application. Cancelling
+and copying are performed inside the Python process; neither PCM nor text is
+returned to the extension.
 
 Routine recording, transcription, insertion, and successful-completion states
 are shown only through the top-bar icon and its status text. Desktop
@@ -41,6 +42,7 @@ The application owns `local.SpeakText` on the session bus and exports
 - `GetStatus() → (state, message, can_copy)`
 - `ActivateWindow()`
 - `CopyLastTranscript() → copied`
+- `CancelRecording()`
 - `Quit()`
 - `StatusChanged(state, message, can_copy)`
 

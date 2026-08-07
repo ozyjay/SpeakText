@@ -23,8 +23,10 @@ network request is the first model download.
   afterwards. No screen or pointer access is requested.
 - If keyboard access is unavailable, SpeakText copies the transcript and shows
   a notification. A partial insertion is never retried automatically.
-- The top-bar menu can open the settings window, copy recoverable text, and
-  quit SpeakText. It never receives audio or transcript text.
+- The application window and top-bar menu can cancel an active recording,
+  immediately discarding its in-memory audio without transcription.
+- The top-bar menu can also open the settings window, copy recoverable text,
+  and quit SpeakText. It never receives audio or transcript text.
 - Wayland does not expose the original focused application. Text goes to the
   cursor focused when transcription finishes.
 

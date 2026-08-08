@@ -60,6 +60,12 @@ class FakeInjector:
         return InsertionOutcome(self.status, len(text))
 
 
+class FailingInjector(FakeInjector):
+    async def insert(self, text: str) -> InsertionOutcome:
+        self.values.append(text)
+        raise RuntimeError("inserter fixture failure")
+
+
 class CoordinatorTests(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self) -> None:
         self.states: list[tuple[DictationState, str]] = []
@@ -141,6 +147,18 @@ class CoordinatorTests(unittest.IsolatedAsyncioTestCase):
         await self.coordinator.initialise()
         await self.coordinator.activate()
         await self.coordinator.deactivate()
+        self.assertIn(DictationState.ERROR, [state for state, _ in self.states])
+        self.assertEqual(self.coordinator.state, DictationState.READY)
+
+    async def test_insertion_error_keeps_transcript_recoverable(self) -> None:
+        self.injector = FailingInjector()
+        self.coordinator.injector = self.injector
+
+        await self.coordinator.activate()
+        await self.coordinator.deactivate()
+
+        self.assertEqual(self.injector.values, ["hello world"])
+        self.assertEqual(self.coordinator.last_transcript, "hello world")
         self.assertIn(DictationState.ERROR, [state for state, _ in self.states])
         self.assertEqual(self.coordinator.state, DictationState.READY)
 

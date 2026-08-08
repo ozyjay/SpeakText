@@ -45,6 +45,7 @@ class SpeakTextApplication(Adw.Application):
         self.loop = asyncio.new_event_loop()
         self._pump_source: int | None = None
         self.window: Adw.ApplicationWindow | None = None
+        self.status_row: Adw.ActionRow | None = None
         self.status_label: Gtk.Label | None = None
         self.shortcut_label: Gtk.Label | None = None
         self.cancel_shortcut_label: Gtk.Label | None = None
@@ -97,6 +98,7 @@ class SpeakTextApplication(Adw.Application):
 
         status_group = Adw.PreferencesGroup(title="Status")
         status_row = Adw.ActionRow(title="Starting")
+        self.status_row = status_row
         self.status_label = Gtk.Label(label="Preparing local speech recognition…")
         self.status_label.set_wrap(True)
         self.status_label.set_xalign(1)
@@ -247,6 +249,8 @@ class SpeakTextApplication(Adw.Application):
 
     def _set_status(self, state: DictationState, message: str) -> None:
         can_copy = bool(self.coordinator and self.coordinator.last_transcript)
+        if self.status_row:
+            self.status_row.set_title(state.value)
         if self.status_label:
             self.status_label.set_label(message)
         if self.cancel_button:

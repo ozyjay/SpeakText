@@ -140,7 +140,12 @@ class DictationCoordinator:
             return
 
         self._set_state(DictationState.INSERTING, "Inserting text…")
-        outcome = await self.injector.insert(transcript)
+        try:
+            outcome = await self.injector.insert(transcript)
+        except Exception:
+            self.last_transcript = transcript
+            self._fail("Could not insert text; the full transcript can be copied")
+            return
         self._handle_outcome(transcript, outcome)
 
     def _handle_outcome(self, transcript: str, outcome: InsertionOutcome) -> None:

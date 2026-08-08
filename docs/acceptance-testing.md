@@ -7,8 +7,10 @@ in an unattended session.
 1. Install with `make install-user`, then log out and back in if requested.
    Confirm a microphone icon appears in the GNOME top bar and its menu can open
    the settings window.
-2. Start SpeakText from the top-bar menu; confirm model download progress and
-   its checksum check.
+2. Start SpeakText from the top-bar menu; confirm startup identifies whether it
+   is checking the local model, downloading it with byte progress, or loading
+   speech recognition. The checking and loading stages show an active progress
+   bar; the first model load can take up to 90 seconds.
 3. While SpeakText is running, add **SpeakText** as an input source in GNOME
    Settings and select it. Confirm no Global Shortcuts or Remote Desktop prompt
    and no orange remote-access indicator appears.

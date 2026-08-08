@@ -58,6 +58,8 @@ class SpeakTextApplication(Adw.Application):
         self.coordinator: DictationCoordinator | None = None
         self.control_service: ControlService | None = None
         self._model_task: asyncio.Task[None] | None = None
+        self._progress_pulse_source: int | None = None
+        self._model_download_started = False
 
     def do_startup(self) -> None:
         Adw.Application.do_startup(self)
@@ -191,13 +193,19 @@ class SpeakTextApplication(Adw.Application):
         return GLib.SOURCE_REMOVE
 
     async def _prepare_model_and_worker(self) -> None:
-        self._set_status(DictationState.STARTING, "Downloading or checking speech model…")
+        self._model_download_started = False
+        self._set_status(DictationState.STARTING, "Checking local speech model…")
+        self._set_startup_progress("This may take a moment")
+        self._start_progress_pulse()
 
         def progress(downloaded: int, total: int | None) -> None:
             GLib.idle_add(self._model_progress, downloaded, total)
 
         try:
             model_path = await self.model_manager.ensure(progress)
+            self._set_status(DictationState.STARTING, "Loading local speech recognition…")
+            self._set_startup_progress("The first load can take up to 90 seconds")
+            self._start_progress_pulse()
             recogniser = TranscriptionWorker(worker_path(), model_path)
             ibus_service = self.ibus_service
             assert ibus_service is not None
@@ -210,6 +218,7 @@ class SpeakTextApplication(Adw.Application):
             )
             await self.coordinator.initialise()
             if self.progress:
+                self._stop_progress_pulse()
                 self.progress.set_fraction(1.0)
                 self.progress.set_text("Model ready")
             if self.retry_button:
@@ -220,6 +229,12 @@ class SpeakTextApplication(Adw.Application):
 
     def _model_progress(self, downloaded: int, total: int | None) -> bool:
         if self.progress:
+            if not self._model_download_started:
+                self._model_download_started = True
+                self._stop_progress_pulse()
+                self._set_status(
+                    DictationState.STARTING, "Downloading local speech model…"
+                )
             if total:
                 self.progress.set_fraction(min(downloaded / total, 1.0))
                 self.progress.set_text(
@@ -232,6 +247,29 @@ class SpeakTextApplication(Adw.Application):
                     f"Downloading model: {downloaded // (1024 * 1024)} MiB"
                 )
         return GLib.SOURCE_REMOVE
+
+    def _set_startup_progress(self, text: str) -> None:
+        if self.progress:
+            self.progress.set_text(text)
+
+    def _start_progress_pulse(self) -> None:
+        if not self.progress:
+            return
+        self.progress.pulse()
+        if self._progress_pulse_source is None:
+            self._progress_pulse_source = GLib.timeout_add(120, self._pulse_progress)
+
+    def _pulse_progress(self) -> bool:
+        if self.progress is None:
+            self._progress_pulse_source = None
+            return GLib.SOURCE_REMOVE
+        self.progress.pulse()
+        return GLib.SOURCE_CONTINUE
+
+    def _stop_progress_pulse(self) -> None:
+        if self._progress_pulse_source is not None:
+            GLib.source_remove(self._progress_pulse_source)
+            self._progress_pulse_source = None
 
     def _is_recording(self) -> bool:
         return bool(
@@ -267,6 +305,8 @@ class SpeakTextApplication(Adw.Application):
 
     def _setup_error(self, message: str) -> None:
         LOGGER.error("setup error: %s", message)
+        self._stop_progress_pulse()
+        self._set_startup_progress("Setup failed")
         self._set_status(DictationState.ERROR, message)
         if self.retry_button:
             self.retry_button.set_sensitive(True)
@@ -326,6 +366,7 @@ class SpeakTextApplication(Adw.Application):
         return GLib.SOURCE_CONTINUE
 
     def do_shutdown(self) -> None:
+        self._stop_progress_pulse()
         if self._pump_source is not None:
             GLib.source_remove(self._pump_source)
             self._pump_source = None

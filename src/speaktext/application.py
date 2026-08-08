@@ -59,8 +59,14 @@ class SpeakTextApplication(Adw.Application):
         self.coordinator: DictationCoordinator | None = None
         self.control_service: ControlService | None = None
         self._model_task: asyncio.Task[None] | None = None
+        self._current_state = DictationState.STARTING
+        self._current_message = "Preparing local speech recognition…"
+        self._startup_progress_text = "Checking model"
+        self._startup_progress_fraction: float | None = 0.0
+        self._startup_progress_pulsing = False
         self._progress_pulse_source: int | None = None
         self._model_download_started = False
+        self._model_download_complete = False
 
     def do_startup(self) -> None:
         Adw.Application.do_startup(self)
@@ -179,6 +185,10 @@ class SpeakTextApplication(Adw.Application):
         toolbar.add_top_bar(header)
         toolbar.set_content(content)
         window.set_content(toolbar)
+        self._set_status(self._current_state, self._current_message)
+        self._refresh_startup_progress()
+        if self._startup_progress_pulsing:
+            self._start_progress_pulse()
         return window
 
     @staticmethod
@@ -201,6 +211,7 @@ class SpeakTextApplication(Adw.Application):
 
     async def _prepare_model_and_worker(self) -> None:
         self._model_download_started = False
+        self._model_download_complete = False
         self._set_status(DictationState.STARTING, "Checking local speech model…")
         self._set_startup_progress("This may take a moment")
         self._start_progress_pulse()
@@ -210,7 +221,10 @@ class SpeakTextApplication(Adw.Application):
 
         try:
             model_path = await self.model_manager.ensure(progress)
-            self._set_status(DictationState.STARTING, "Loading local speech recognition…")
+            self._model_download_complete = True
+            self._set_status(
+                DictationState.STARTING, "Loading local speech recognition…"
+            )
             self._set_startup_progress("The first load can take up to 90 seconds")
             self._start_progress_pulse()
             recogniser = TranscriptionWorker(worker_path(), model_path)
@@ -224,10 +238,8 @@ class SpeakTextApplication(Adw.Application):
                 AudioCapture(), recogniser, injector, self._set_status
             )
             await self.coordinator.initialise()
-            if self.progress:
-                self._stop_progress_pulse()
-                self.progress.set_fraction(1.0)
-                self.progress.set_text("Model ready")
+            self._stop_progress_pulse()
+            self._set_startup_progress("Model ready", fraction=1.0)
             if self.retry_button:
                 self.retry_button.set_sensitive(False)
         except Exception as error:
@@ -235,31 +247,42 @@ class SpeakTextApplication(Adw.Application):
             self._setup_error(str(error))
 
     def _model_progress(self, downloaded: int, total: int | None) -> bool:
-        if self.progress:
-            if not self._model_download_started:
-                self._model_download_started = True
-                self._stop_progress_pulse()
-                self._set_status(
-                    DictationState.STARTING, "Downloading local speech model…"
-                )
-            if total:
-                self.progress.set_fraction(min(downloaded / total, 1.0))
-                self.progress.set_text(
-                    f"Downloading model: {downloaded // (1024 * 1024)} / "
-                    f"{total // (1024 * 1024)} MiB"
-                )
-            else:
-                self.progress.pulse()
-                self.progress.set_text(
-                    f"Downloading model: {downloaded // (1024 * 1024)} MiB"
-                )
+        if self._model_download_complete:
+            return GLib.SOURCE_REMOVE
+        if not self._model_download_started:
+            self._model_download_started = True
+            self._stop_progress_pulse()
+            self._set_status(
+                DictationState.STARTING, "Downloading local speech model…"
+            )
+        if total:
+            self._set_startup_progress(
+                f"Downloading model: {downloaded // (1024 * 1024)} / "
+                f"{total // (1024 * 1024)} MiB",
+                fraction=min(downloaded / total, 1.0),
+            )
+        else:
+            self._set_startup_progress(
+                f"Downloading model: {downloaded // (1024 * 1024)} MiB"
+            )
+            self._start_progress_pulse()
         return GLib.SOURCE_REMOVE
 
-    def _set_startup_progress(self, text: str) -> None:
-        if self.progress:
-            self.progress.set_text(text)
+    def _set_startup_progress(
+        self, text: str, fraction: float | None = None
+    ) -> None:
+        self._startup_progress_text = text
+        self._startup_progress_fraction = fraction
+        self._refresh_startup_progress()
+
+    def _refresh_startup_progress(self) -> None:
+        if not self.progress:
+            return
+        self.progress.set_fraction(self._startup_progress_fraction or 0.0)
+        self.progress.set_text(self._startup_progress_text)
 
     def _start_progress_pulse(self) -> None:
+        self._startup_progress_pulsing = True
         if not self.progress:
             return
         self.progress.pulse()
@@ -274,6 +297,7 @@ class SpeakTextApplication(Adw.Application):
         return GLib.SOURCE_CONTINUE
 
     def _stop_progress_pulse(self) -> None:
+        self._startup_progress_pulsing = False
         if self._progress_pulse_source is not None:
             GLib.source_remove(self._progress_pulse_source)
             self._progress_pulse_source = None
@@ -293,6 +317,8 @@ class SpeakTextApplication(Adw.Application):
             self.loop.create_task(self.coordinator.activate())
 
     def _set_status(self, state: DictationState, message: str) -> None:
+        self._current_state = state
+        self._current_message = message
         can_copy = bool(self.coordinator and self.coordinator.last_transcript)
         if self.status_row:
             self.status_row.set_title(state.value)

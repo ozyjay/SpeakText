@@ -1,7 +1,7 @@
 SHELL := /usr/bin/pwsh
 .SHELLFLAGS := -NoLogo -NoProfile -NonInteractive -Command
 
-.PHONY: check build run install-user uninstall-user test
+.PHONY: check build run run-installed install-user uninstall-user test
 
 check:
 	./scripts/bootstrap.ps1 -Check
@@ -10,7 +10,10 @@ build:
 	./scripts/bootstrap.ps1
 
 run:
-	$$env:PYTHONPATH = 'src'; $$env:SPEAKTEXT_WORKER = 'build/speaktext-worker'; python3 -m speaktext
+	Write-Host 'Running the development checkout.'; $$env:PYTHONPATH = 'src'; $$env:SPEAKTEXT_WORKER = 'build/speaktext-worker'; python3 -m speaktext
+
+run-installed:
+	./scripts/run-installed.ps1
 
 install-user: build
 	./scripts/install-user.ps1

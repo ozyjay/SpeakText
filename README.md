@@ -51,11 +51,21 @@ runs `sudo`. Once dependencies are available, build the CPU-only native worker:
 ```
 
 This fetches the pinned `whisper.cpp` 1.9.1 source during the first build. Run
-the development copy with:
+the development checkout with:
 
 ```powershell
 make run
 ```
+
+This is intentionally separate from the application launched by the top-bar
+indicator. After installation, test that exact build with:
+
+```powershell
+make run-installed
+```
+
+Quit any existing SpeakText instance first. The command verifies this, then
+prints the installed build identity before it launches the application.
 
 The first run downloads and verifies the approximately 142 MiB English model.
 While SpeakText is running, add **SpeakText** as an input source in GNOME
@@ -86,7 +96,9 @@ gnome-extensions enable speaktext@local
 Use the microphone icon in the top bar to open the settings window, copy a
 recoverable transcript, or quit. You can also launch **SpeakText** from the
 GNOME application grid or run `~/.local/bin/speaktext`. Closing the window
-keeps dictation running.
+keeps dictation running. The window's **Diagnostics → Build** row identifies
+whether the running application is the development checkout or an installed
+build revision.
 
 To remove executables and desktop metadata while retaining the downloaded
 model and settings:

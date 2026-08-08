@@ -4,6 +4,7 @@ import unittest
 
 PROJECT_DIR = Path(__file__).resolve().parents[1]
 LAUNCHER = PROJECT_DIR / "scripts" / "speaktext-launcher"
+INSTALLER = PROJECT_DIR / "scripts" / "install-user.ps1"
 
 
 class LauncherTests(unittest.TestCase):
@@ -20,6 +21,18 @@ class LauncherTests(unittest.TestCase):
 
         self.assertIn('os.environ.get("SNAP")', source)
         self.assertIn('["/usr/bin/gapplication", "launch", APP_ID]', source)
+
+    def test_launcher_can_report_its_build_identity(self):
+        source = LAUNCHER.read_text(encoding="utf-8")
+
+        self.assertIn('sys.argv[1:] == ["--build-id"]', source)
+        self.assertIn("from speaktext.build_info import BUILD_LABEL", source)
+
+    def test_installer_embeds_an_installed_build_label(self):
+        source = INSTALLER.read_text(encoding="utf-8")
+
+        self.assertIn('Join-Path $pythonPackageDir "build_info.py"', source)
+        self.assertIn('BUILD_LABEL = "Installed build: $buildRevision"', source)
 
 
 if __name__ == "__main__":

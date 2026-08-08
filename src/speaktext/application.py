@@ -12,6 +12,7 @@ gi.require_version("Gtk", "4.0")
 from gi.repository import Adw, Gio, GLib, Gtk  # noqa: E402
 
 from .audio import AudioCapture
+from .build_info import BUILD_LABEL
 from .constants import (
     APP_ID,
     APP_NAME,
@@ -139,6 +140,11 @@ class SpeakTextApplication(Adw.Application):
         privacy_row.set_subtitle_lines(3)
         shortcut_group.add(privacy_row)
 
+        diagnostics_group = Adw.PreferencesGroup(title="Diagnostics")
+        diagnostics_group.add(
+            Adw.ActionRow(title="Build", subtitle=BUILD_LABEL)
+        )
+
         actions = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=12)
         actions.set_halign(Gtk.Align.END)
         self.retry_button = Gtk.Button(label="Retry setup")
@@ -166,6 +172,7 @@ class SpeakTextApplication(Adw.Application):
         content.set_margin_end(18)
         content.append(status_group)
         content.append(shortcut_group)
+        content.append(diagnostics_group)
         content.append(actions)
 
         toolbar = Adw.ToolbarView()

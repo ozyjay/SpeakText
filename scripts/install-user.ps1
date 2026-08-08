@@ -88,6 +88,21 @@ $pythonPackageDir = Join-Path $pythonDir "speaktext"
 $null = New-Item -ItemType Directory -Path $pythonPackageDir -Force
 Get-ChildItem (Join-Path $projectDir "src/speaktext") -Filter "*.py" -File |
     Copy-Item -Destination $pythonPackageDir -Force
+$buildRevision = "unknown revision"
+$git = Get-Command git -ErrorAction SilentlyContinue
+if ($null -ne $git) {
+    $revision = & $git.Source -C $projectDir rev-parse --short HEAD 2>$null
+    if ($LASTEXITCODE -eq 0 -and $revision -match "^[0-9a-f]+$") {
+        $buildRevision = $revision
+    }
+}
+$installedBuildInfo = @"
+"""Identity embedded when SpeakText is installed for a user."""
+
+BUILD_LABEL = "Installed build: $buildRevision"
+"@
+Set-Content -LiteralPath (Join-Path $pythonPackageDir "build_info.py") `
+    -Value $installedBuildInfo -NoNewline -Encoding utf8
 Copy-Item -LiteralPath (Join-Path $projectDir "data/local.SpeakText.svg") `
     -Destination (Join-Path $iconsDir "local.SpeakText.svg") -Force
 

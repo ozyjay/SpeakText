@@ -43,6 +43,12 @@ os.environ["SPEAKTEXT_WORKER"] = str(
     LIBEXEC_HOME / "speaktext/speaktext-worker"
 )
 
+if sys.argv[1:] == ["--build-id"]:
+    from speaktext.build_info import BUILD_LABEL
+
+    print(BUILD_LABEL)
+    raise SystemExit(0)
+
 from speaktext.application import main  # noqa: E402
 
 

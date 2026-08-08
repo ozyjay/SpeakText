@@ -35,6 +35,25 @@ Run directly from the repository:
 make run
 ```
 
+`make run` always runs the development checkout and reports that fact before
+launching. The top-bar indicator launches the installed application instead.
+After `make install-user`, use the following command to test the same launcher
+as the top-bar item:
+
+```powershell
+make run-installed
+```
+
+Quit SpeakText first: `make run-installed` refuses to continue while another
+instance owns the application D-Bus name, avoiding a launch that would silently
+forward to the development checkout. It prints the installed build identity
+before opening the window.
+
+The **Diagnostics → Build** row identifies the running copy as either the
+development checkout or the installed Git revision. Reinstall before verifying
+top-bar changes so that the extension, launcher, Python code, and worker stay
+in sync.
+
 First run downloads `ggml-base.en.bin`, checks its pinned SHA-256 digest, and
 stores it in the XDG data directory. While SpeakText is running, add it as a
 GNOME input source. No Global Shortcuts or Remote Desktop permission is

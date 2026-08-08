@@ -159,5 +159,7 @@ else {
     [Console]::Error.WriteLine("  gnome-extensions enable $extensionUuid")
 }
 
-Write-Output "Installed SpeakText for the current user ($extensionStatus). Run: $launcherPath"
+Write-Output "Installed SpeakText for the current user ($extensionStatus)."
+Write-Output "The GNOME top-bar indicator launches this installed copy via D-Bus."
+Write-Output "To launch it manually, run: $launcherPath"
 Write-Output "Start SpeakText, then add it in GNOME Settings > Keyboard > Input Sources."

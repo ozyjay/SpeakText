@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- User-local IBus component installed by SpeakText. -->
+<component>
+  <name>local.SpeakText.IBus</name>
+  <description>SpeakText input method</description>
+  <exec>@EXEC@</exec>
+  <version>1.0</version>
+  <author>SpeakText contributors</author>
+  <license>Unspecified</license>
+  <homepage></homepage>
+  <textdomain>speaktext</textdomain>
+  <engines>
+    <engine>
+      <name>speaktext</name>
+      <longname>SpeakText</longname>
+      <description>Private local speech-to-text dictation</description>
+      <language>en</language>
+      <license>Unspecified</license>
+      <author>SpeakText contributors</author>
+      <icon>local.SpeakText</icon>
+      <layout>default</layout>
+      <rank>80</rank>
+      <symbol>ST</symbol>
+    </engine>
+  </engines>
+</component>

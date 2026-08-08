@@ -35,6 +35,9 @@ cannot recover. Do not remove the repository or model directories.
 
 ## Shift gesture does not activate
 
+- Confirm **SpeakText** appears under GNOME Settings → Keyboard → Input
+  Sources. If it is absent after `make install-user`, log out and back in so
+  IBus reloads the installed component descriptor.
 - Reopen SpeakText and use **Retry setup**.
 - Start SpeakText before opening GNOME Settings, add **SpeakText** under
   Keyboard → Input Sources, and select it.

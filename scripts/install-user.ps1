@@ -14,6 +14,7 @@ $pythonDir = Join-Path $dataHome "speaktext/python"
 $applicationsDir = Join-Path $dataHome "applications"
 $iconsDir = Join-Path $dataHome "icons/hicolor/scalable/apps"
 $dbusServicesDir = Join-Path $dataHome "dbus-1/services"
+$ibusComponentDir = Join-Path $dataHome "ibus/component"
 $extensionUuid = "speaktext@local"
 $extensionDir = Join-Path $dataHome "gnome-shell/extensions/$extensionUuid"
 $workerSource = Join-Path $projectDir "build/speaktext-worker"
@@ -67,6 +68,7 @@ if (-not $skipExtensionEnable -and $null -ne $gnomeExtensions) {
     $applicationsDir,
     $iconsDir,
     $dbusServicesDir,
+    $ibusComponentDir,
     $extensionDir
 ) | ForEach-Object {
     $null = New-Item -ItemType Directory -Path $_ -Force
@@ -114,6 +116,10 @@ $dbusService = (Get-Content (Join-Path $projectDir "data/local.SpeakText.service
     Replace("@EXEC@", $launcherPath)
 $dbusServicePath = Join-Path $dbusServicesDir "local.SpeakText.service"
 Set-Content -LiteralPath $dbusServicePath -Value $dbusService -NoNewline -Encoding utf8
+$ibusComponent = (Get-Content (Join-Path $projectDir "data/local.SpeakText.ibus.xml.in") -Raw).
+    Replace("@EXEC@", $launcherPath)
+$ibusComponentPath = Join-Path $ibusComponentDir "local.SpeakText.xml"
+Set-Content -LiteralPath $ibusComponentPath -Value $ibusComponent -NoNewline -Encoding utf8
 Copy-Item -LiteralPath (Join-Path $projectDir "extension/extension.js") `
     -Destination (Join-Path $extensionDir "extension.js") -Force
 Copy-Item -LiteralPath (Join-Path $projectDir "extension/metadata.json") `
@@ -124,12 +130,38 @@ Copy-Item -LiteralPath (Join-Path $projectDir "extension/metadata.json") `
 @(
     $desktopPath,
     $dbusServicePath,
+    $ibusComponentPath,
     (Join-Path $iconsDir "local.SpeakText.svg"),
     (Join-Path $extensionDir "extension.js"),
     (Join-Path $extensionDir "metadata.json")
 ) | ForEach-Object { [IO.File]::SetUnixFileMode($_, $readableMode) }
 Get-ChildItem $pythonPackageDir -Filter "*.py" -File |
     ForEach-Object { [IO.File]::SetUnixFileMode($_.FullName, $readableMode) }
+
+$ibus = Get-Command ibus -ErrorAction SilentlyContinue
+if ($null -eq $ibus) {
+    throw "IBus is required to register the SpeakText input source."
+}
+$savedIbusComponentPath = $env:IBUS_COMPONENT_PATH
+try {
+    $componentPaths = @($ibusComponentDir, "/usr/share/ibus/component")
+    if (-not [string]::IsNullOrWhiteSpace($savedIbusComponentPath)) {
+        $componentPaths += $savedIbusComponentPath -split [IO.Path]::PathSeparator
+    }
+    $env:IBUS_COMPONENT_PATH = $componentPaths -join [IO.Path]::PathSeparator
+    & $ibus.Source write-cache 2>$null | Out-Null
+    if ($LASTEXITCODE -ne 0) {
+        throw "Could not rebuild the user IBus registry."
+    }
+}
+finally {
+    if ($null -eq $savedIbusComponentPath) {
+        Remove-Item Env:IBUS_COMPONENT_PATH -ErrorAction SilentlyContinue
+    }
+    else {
+        $env:IBUS_COMPONENT_PATH = $savedIbusComponentPath
+    }
+}
 
 $updateDesktopDatabase = Get-Command update-desktop-database -ErrorAction SilentlyContinue
 if ($null -ne $updateDesktopDatabase) {
@@ -162,4 +194,4 @@ else {
 Write-Output "Installed SpeakText for the current user ($extensionStatus)."
 Write-Output "The GNOME top-bar indicator launches this installed copy via D-Bus."
 Write-Output "To launch it manually, run: $launcherPath"
-Write-Output "Start SpeakText, then add it in GNOME Settings > Keyboard > Input Sources."
+Write-Output "Log out and back in before adding SpeakText in GNOME Settings > Keyboard > Input Sources."

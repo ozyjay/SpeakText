@@ -1,10 +1,13 @@
 from pathlib import Path
 import unittest
+import xml.etree.ElementTree as ET
 
 
 PROJECT_DIR = Path(__file__).resolve().parents[1]
 LAUNCHER = PROJECT_DIR / "scripts" / "speaktext-launcher"
 INSTALLER = PROJECT_DIR / "scripts" / "install-user.ps1"
+UNINSTALLER = PROJECT_DIR / "scripts" / "uninstall-user.ps1"
+IBUS_COMPONENT = PROJECT_DIR / "data" / "local.SpeakText.ibus.xml.in"
 
 
 class LauncherTests(unittest.TestCase):
@@ -33,6 +36,17 @@ class LauncherTests(unittest.TestCase):
 
         self.assertIn('Join-Path $pythonPackageDir "build_info.py"', source)
         self.assertIn('BUILD_LABEL = "Installed build: $buildRevision"', source)
+
+    def test_ibus_component_is_discoverable_and_installed(self):
+        root = ET.parse(IBUS_COMPONENT).getroot()
+        installer = INSTALLER.read_text(encoding="utf-8")
+
+        self.assertEqual(root.findtext("name"), "local.SpeakText.IBus")
+        self.assertEqual(root.findtext("engines/engine/name"), "speaktext")
+        self.assertEqual(root.findtext("exec"), "@EXEC@")
+        self.assertIn('Join-Path $dataHome "ibus/component"', installer)
+        self.assertIn("write-cache", installer)
+        self.assertIn('ibus/component/local.SpeakText.xml', UNINSTALLER.read_text())
 
 
 if __name__ == "__main__":

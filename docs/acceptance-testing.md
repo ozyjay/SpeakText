@@ -4,9 +4,9 @@ Run these checks in a GNOME Wayland session after building SpeakText. Portal
 tests deliberately require visible user approval and should not be automated
 in an unattended session.
 
-1. Install with `make install-user`, then log out and back in if requested.
-   Confirm a microphone icon appears in the GNOME top bar and its menu can open
-   the settings window.
+1. Install with `make install-user`, then log out and back in so IBus loads the
+   user-local SpeakText component. Confirm a microphone icon appears in the
+   GNOME top bar and its menu can open the settings window.
 2. Start SpeakText from the top-bar menu; confirm startup identifies whether it
    is checking the local model, downloading it with byte progress, or loading
    speech recognition. The checking and loading stages show an active progress

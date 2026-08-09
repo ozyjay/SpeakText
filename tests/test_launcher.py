@@ -37,6 +37,13 @@ class LauncherTests(unittest.TestCase):
         self.assertIn('Join-Path $pythonPackageDir "build_info.py"', source)
         self.assertIn('BUILD_LABEL = "Installed build: $buildRevision"', source)
 
+    def test_installer_adds_ibus_source_without_replacing_layouts(self):
+        source = INSTALLER.read_text(encoding="utf-8")
+
+        self.assertIn("SPEAKTEXT_SKIP_INPUT_SOURCE", source)
+        self.assertIn("$entries, ('ibus', 'speaktext')", source)
+        self.assertIn("SpeakText input source already configured", source)
+
     def test_ibus_component_is_discoverable_and_installed(self):
         root = ET.parse(IBUS_COMPONENT).getroot()
         installer = INSTALLER.read_text(encoding="utf-8")

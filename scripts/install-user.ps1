@@ -56,6 +56,7 @@ if (-not (Test-Path -LiteralPath $workerSource -PathType Leaf)) {
 }
 
 $skipExtensionEnable = $env:SPEAKTEXT_SKIP_EXTENSION_ENABLE -eq "1"
+$skipInputSource = $env:SPEAKTEXT_SKIP_INPUT_SOURCE -eq "1"
 $gnomeExtensions = Get-Command gnome-extensions -ErrorAction SilentlyContinue
 if (-not $skipExtensionEnable -and $null -ne $gnomeExtensions) {
     & $gnomeExtensions.Source disable $extensionUuid 2>$null | Out-Null
@@ -163,6 +164,65 @@ finally {
     }
 }
 
+$inputSourceStatus = "input source setup skipped"
+if (-not $skipInputSource) {
+    $gsettings = Get-Command gsettings -ErrorAction SilentlyContinue
+    if ($null -eq $gsettings) {
+        [Console]::Error.WriteLine(
+            "Could not add SpeakText to GNOME Input Sources because gsettings was not found."
+        )
+    }
+    else {
+        $savedGioExtraModules = $env:GIO_EXTRA_MODULES
+        try {
+            # Snap-packaged terminals can inject incompatible host GIO modules.
+            Remove-Item Env:GIO_EXTRA_MODULES -ErrorAction SilentlyContinue
+            $currentSources = (
+                & $gsettings.Source get org.gnome.desktop.input-sources sources 2>$null |
+                    Out-String
+            ).Trim()
+            if ($LASTEXITCODE -ne 0) {
+                throw "Could not read GNOME input sources."
+            }
+
+            if ($currentSources -match "\(\s*'ibus'\s*,\s*'speaktext'\s*\)") {
+                $inputSourceStatus = "SpeakText input source already configured"
+            }
+            elseif ($currentSources -match '^\s*(?:@a\(ss\)\s*)?\[(?<entries>.*)\]\s*$') {
+                $entries = $Matches.entries.Trim()
+                if ([string]::IsNullOrWhiteSpace($entries)) {
+                    $updatedSources = "[('ibus', 'speaktext')]"
+                }
+                else {
+                    $updatedSources = "[$entries, ('ibus', 'speaktext')]"
+                }
+                & $gsettings.Source set org.gnome.desktop.input-sources sources `
+                    $updatedSources 2>$null
+                if ($LASTEXITCODE -ne 0) {
+                    throw "Could not update GNOME input sources."
+                }
+                $inputSourceStatus = "SpeakText input source added"
+            }
+            else {
+                throw "GNOME returned an unrecognised input-source list."
+            }
+        }
+        catch {
+            [Console]::Error.WriteLine(
+                "Could not add SpeakText to GNOME Input Sources automatically: $($_.Exception.Message)"
+            )
+        }
+        finally {
+            if ($null -eq $savedGioExtraModules) {
+                Remove-Item Env:GIO_EXTRA_MODULES -ErrorAction SilentlyContinue
+            }
+            else {
+                $env:GIO_EXTRA_MODULES = $savedGioExtraModules
+            }
+        }
+    }
+}
+
 $updateDesktopDatabase = Get-Command update-desktop-database -ErrorAction SilentlyContinue
 if ($null -ne $updateDesktopDatabase) {
     & $updateDesktopDatabase.Source $applicationsDir 2>$null | Out-Null
@@ -192,6 +252,7 @@ else {
 }
 
 Write-Output "Installed SpeakText for the current user ($extensionStatus)."
+Write-Output "GNOME integration: $inputSourceStatus."
 Write-Output "The GNOME top-bar indicator launches this installed copy via D-Bus."
 Write-Output "To launch it manually, run: $launcherPath"
-Write-Output "Log out and back in before adding SpeakText in GNOME Settings > Keyboard > Input Sources."
+Write-Output "Log out and back in if SpeakText is not yet available in the input-source menu."

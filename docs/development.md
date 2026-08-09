@@ -108,9 +108,11 @@ $null = New-Item -ItemType Directory -Path "$testRoot/home" -Force
 $savedHome = $env:HOME
 $savedDataHome = $env:XDG_DATA_HOME
 $savedSkipEnable = $env:SPEAKTEXT_SKIP_EXTENSION_ENABLE
+$savedSkipInputSource = $env:SPEAKTEXT_SKIP_INPUT_SOURCE
 $env:HOME = "$testRoot/home"
 $env:XDG_DATA_HOME = "$testRoot/data"
 $env:SPEAKTEXT_SKIP_EXTENSION_ENABLE = "1"
+$env:SPEAKTEXT_SKIP_INPUT_SOURCE = "1"
 try {
     ./scripts/install-user.ps1
     ./scripts/uninstall-user.ps1
@@ -119,13 +121,14 @@ finally {
     $env:HOME = $savedHome
     $env:XDG_DATA_HOME = $savedDataHome
     $env:SPEAKTEXT_SKIP_EXTENSION_ENABLE = $savedSkipEnable
+    $env:SPEAKTEXT_SKIP_INPUT_SOURCE = $savedSkipInputSource
     Remove-Item -LiteralPath $testRoot -Recurse -Force
 }
 ```
 
-Skipping extension enablement is required for this isolated check because the
-test installation is not visible to the live GNOME Shell. Verify the installed
-extension interactively in the target session using
+Skipping extension enablement and input-source configuration is required for
+this isolated check because it must not change the live GNOME session. Verify
+the installed extension and input source interactively using
 [acceptance-testing.md](acceptance-testing.md).
 
 When the installer inherits a Snap-private `XDG_DATA_HOME`, such as from a

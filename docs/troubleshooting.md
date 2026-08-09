@@ -35,12 +35,14 @@ cannot recover. Do not remove the repository or model directories.
 
 ## Shift gesture does not activate
 
-- Confirm **SpeakText** appears under GNOME Settings → Keyboard → Input
-  Sources. If it is absent after `make install-user`, log out and back in so
-  IBus reloads the installed component descriptor.
+- Confirm **SpeakText** appears in GNOME's top-bar input-source menu and select
+  it. If it is absent after `make install-user`, log out and back in so IBus
+  reloads the installed component descriptor.
 - Reopen SpeakText and use **Retry setup**.
-- Start SpeakText before opening GNOME Settings, add **SpeakText** under
-  Keyboard → Input Sources, and select it.
+- Check `gsettings get org.gnome.desktop.input-sources sources` for
+  `('ibus', 'speaktext')`. If it is missing, rerun `make install-user` or use
+  the manual `gsettings set` example in the README while retaining every
+  existing keyboard-layout entry.
 - Focus an editable text control. The engine deliberately receives no gesture
   outside an active IBus text context.
 - Tap Shift twice within about 350 ms. Double-tap again to finish, or tap once

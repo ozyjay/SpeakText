@@ -11,9 +11,10 @@ in an unattended session.
    is checking the local model, downloading it with byte progress, or loading
    speech recognition. The checking and loading stages show an active progress
    bar; the first model load can take up to 90 seconds.
-3. While SpeakText is running, add **SpeakText** as an input source in GNOME
-   Settings and select it. Confirm no Global Shortcuts or Remote Desktop prompt
-   and no orange remote-access indicator appears.
+3. Confirm the installer retained the existing keyboard layouts and added
+   **SpeakText** to GNOME's input-source menu. Select it and confirm no Global
+   Shortcuts or Remote Desktop prompt and no orange remote-access indicator
+   appears.
 4. Confirm the top-bar icon and status text follow Ready, Recording,
    Transcribing, Inserting, and Error states without routine desktop
    notifications.

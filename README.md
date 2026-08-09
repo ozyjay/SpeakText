@@ -71,8 +71,9 @@ Quit any existing SpeakText instance first. The command verifies this, then
 prints the installed build identity before it launches the application.
 
 The first run downloads and verifies the approximately 142 MiB English model.
-While SpeakText is running, add **SpeakText** as an input source in GNOME
-Settings, then select it to enable the Shift gesture and native text insertion.
+The user installer adds **SpeakText** to GNOME's existing input sources without
+removing any keyboard layouts. Select it from GNOME's input-source menu to
+enable the Shift gesture and native text insertion.
 
 ## User-local installation
 
@@ -83,8 +84,7 @@ make install-user
 ```
 
 The installer also adds and enables the `speaktext@local` GNOME Shell
-extension. Start SpeakText, then add **SpeakText** under GNOME Settings →
-Keyboard → Input Sources while the application is running. When run
+extension and adds **SpeakText** to GNOME's input sources. When run
 from a Snap-packaged terminal or editor, the installer avoids that
 Snap's private data directory and installs into the host user's
 `~/.local/share`. Launches from a Snap terminal are delegated to host D-Bus
@@ -94,6 +94,20 @@ run:
 
 ```powershell
 gnome-extensions enable speaktext@local
+```
+
+If automatic input-source setup fails, first inspect the current list:
+
+```bash
+gsettings get org.gnome.desktop.input-sources sources
+```
+
+Then retain those entries and append `('ibus', 'speaktext')`. For example, an
+Australian English configuration is:
+
+```bash
+gsettings set org.gnome.desktop.input-sources sources \
+  "[('xkb', 'au'), ('ibus', 'speaktext')]"
 ```
 
 Use the microphone icon in the top bar to open the settings window, copy a

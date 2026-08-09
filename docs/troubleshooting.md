@@ -38,6 +38,9 @@ cannot recover. Do not remove the repository or model directories.
 - Confirm **SpeakText** appears in GNOME's top-bar input-source menu and select
   it. If it is absent after `make install-user`, log out and back in so IBus
   reloads the installed component descriptor.
+- Check `ibus list-engine | rg -i speaktext`. If it returns nothing, rerun
+  `make install-user`, then log out completely and back in so Fedora's IBus
+  service receives the user component path.
 - Reopen SpeakText and use **Retry setup**.
 - Check `gsettings get org.gnome.desktop.input-sources sources` for
   `('ibus', 'speaktext')`. If it is missing, rerun `make install-user` or use

@@ -84,7 +84,8 @@ make install-user
 ```
 
 The installer also adds and enables the `speaktext@local` GNOME Shell
-extension and adds **SpeakText** to GNOME's input sources. When run
+extension, exposes the user-local IBus component to the GNOME session, and adds
+**SpeakText** to GNOME's input sources. When run
 from a Snap-packaged terminal or editor, the installer avoids that
 Snap's private data directory and installs into the host user's
 `~/.local/share`. Launches from a Snap terminal are delegated to host D-Bus
@@ -95,6 +96,10 @@ run:
 ```powershell
 gnome-extensions enable speaktext@local
 ```
+
+The IBus component path takes effect when IBus next starts. After the first
+installation, log out completely and back in; locking the session is not
+sufficient. GNOME should then show **SpeakText** in its input-source menu.
 
 If automatic input-source setup fails, first inspect the current list:
 

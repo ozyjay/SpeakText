@@ -7,6 +7,7 @@ $ErrorActionPreference = "Stop"
 $installPaths = Get-SpeakTextUserInstallPaths
 $dataHome = $installPaths.DataHome
 $ibusComponentDir = Join-Path $dataHome "ibus/component"
+$ibusServiceDropInDir = Join-Path $installPaths.UserHome ".config/systemd/user/org.freedesktop.IBus.session.GNOME.service.d"
 $extensionUuid = "speaktext@local"
 $skipExtensionEnable = $env:SPEAKTEXT_SKIP_EXTENSION_ENABLE -eq "1"
 $gnomeExtensions = Get-Command gnome-extensions -ErrorAction SilentlyContinue
@@ -21,6 +22,7 @@ $targets = @(
     (Join-Path $dataHome "icons/hicolor/scalable/apps/local.SpeakText.svg"),
     (Join-Path $dataHome "dbus-1/services/local.SpeakText.service"),
     (Join-Path $dataHome "ibus/component/local.SpeakText.xml"),
+    (Join-Path $ibusServiceDropInDir "10-speaktext-component-path.conf"),
     (Join-Path $dataHome "speaktext/python/speaktext"),
     (Join-Path $dataHome "gnome-shell/extensions/$extensionUuid")
 )
@@ -57,7 +59,8 @@ if ($null -ne $ibus) {
 @(
     (Join-Path $installPaths.UserHome ".local/libexec/speaktext"),
     (Join-Path $dataHome "speaktext/python"),
-    $ibusComponentDir
+    $ibusComponentDir,
+    $ibusServiceDropInDir
 ) | ForEach-Object {
     if (Test-Path -LiteralPath $_) {
         try {
@@ -67,6 +70,11 @@ if ($null -ne $ibus) {
             # Retain non-empty directories.
         }
     }
+}
+
+$systemctl = Get-Command systemctl -ErrorAction SilentlyContinue
+if ($null -ne $systemctl) {
+    & $systemctl.Source --user daemon-reload 2>$null | Out-Null
 }
 
 Write-Output "Uninstalled SpeakText. Models, legacy settings, and diagnostics were retained."

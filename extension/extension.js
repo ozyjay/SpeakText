@@ -39,7 +39,7 @@ const ControlProxy = Gio.DBusProxy.makeProxyWrapper(CONTROL_XML);
 const ICONS = {
     Starting: 'content-loading-symbolic',
     Ready: 'audio-input-microphone-symbolic',
-    Recording: 'media-record-symbolic',
+    Recording: 'audio-input-microphone-symbolic',
     Transcribing: 'content-loading-symbolic',
     Inserting: 'document-send-symbolic',
     Error: 'dialog-error-symbolic',
@@ -133,6 +133,10 @@ class SpeakTextIndicator extends PanelMenu.Button {
 
     _setStatus(state, message, canCopy) {
         this._icon.icon_name = ICONS[state] ?? ICONS.Error;
+        if (state === 'Recording')
+            this._icon.add_style_class_name('speaktext-recording');
+        else
+            this._icon.remove_style_class_name('speaktext-recording');
         this._statusItem.label.text = message || state;
         this._cancelItem.setSensitive(state === 'Recording');
         this._copyItem.setSensitive(canCopy);

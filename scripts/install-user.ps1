@@ -127,6 +127,8 @@ Copy-Item -LiteralPath (Join-Path $projectDir "extension/extension.js") `
     -Destination (Join-Path $extensionDir "extension.js") -Force
 Copy-Item -LiteralPath (Join-Path $projectDir "extension/metadata.json") `
     -Destination (Join-Path $extensionDir "metadata.json") -Force
+Copy-Item -LiteralPath (Join-Path $projectDir "extension/stylesheet.css") `
+    -Destination (Join-Path $extensionDir "stylesheet.css") -Force
 
 [IO.File]::SetUnixFileMode($launcherPath, $executableMode)
 [IO.File]::SetUnixFileMode($workerDestination, $executableMode)
@@ -136,7 +138,8 @@ Copy-Item -LiteralPath (Join-Path $projectDir "extension/metadata.json") `
     $ibusComponentPath,
     (Join-Path $iconsDir "local.SpeakText.svg"),
     (Join-Path $extensionDir "extension.js"),
-    (Join-Path $extensionDir "metadata.json")
+    (Join-Path $extensionDir "metadata.json"),
+    (Join-Path $extensionDir "stylesheet.css")
 ) | ForEach-Object { [IO.File]::SetUnixFileMode($_, $readableMode) }
 Get-ChildItem $pythonPackageDir -Filter "*.py" -File |
     ForEach-Object { [IO.File]::SetUnixFileMode($_.FullName, $readableMode) }

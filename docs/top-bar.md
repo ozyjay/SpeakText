@@ -13,7 +13,7 @@ The symbolic icon follows the application state:
 | --- | --- |
 | Starting | The app identifies whether it is checking, downloading, or loading the local model |
 | Ready | Double-tapping the configured key can begin dictation in an active context |
-| Recording | Microphone capture is active |
+| Recording | Microphone capture is active; the microphone icon turns red without moving |
 | Transcribing | Local Whisper inference is active |
 | Inserting | The transcript is being committed through IBus |
 | Error | Setup or dictation needs attention |
@@ -28,6 +28,10 @@ Routine recording, transcription, insertion, and successful-completion states
 are shown only through the top-bar icon and its status text. Desktop
 notifications are reserved for errors and clipboard fallback that needs user
 attention.
+
+Ready and Recording deliberately use the same microphone glyph. Recording
+adds a red style instead of swapping glyphs, keeping the indicator visually
+anchored while GNOME updates its other microphone-status controls.
 
 SpeakText does not open a Remote Desktop session, so dictation does not produce
 GNOME's orange remote-access indicator.

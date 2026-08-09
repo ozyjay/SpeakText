@@ -8,6 +8,7 @@ LAUNCHER = PROJECT_DIR / "scripts" / "speaktext-launcher"
 INSTALLER = PROJECT_DIR / "scripts" / "install-user.ps1"
 UNINSTALLER = PROJECT_DIR / "scripts" / "uninstall-user.ps1"
 IBUS_COMPONENT = PROJECT_DIR / "data" / "local.SpeakText.ibus.xml.in"
+EXTENSION = PROJECT_DIR / "extension" / "extension.js"
 
 
 class LauncherTests(unittest.TestCase):
@@ -55,6 +56,17 @@ class LauncherTests(unittest.TestCase):
         self.assertIn('Join-Path $dataHome "ibus/component"', installer)
         self.assertIn("write-cache", installer)
         self.assertIn('ibus/component/local.SpeakText.xml', UNINSTALLER.read_text())
+
+    def test_recording_keeps_the_microphone_icon_and_changes_its_style(self):
+        extension = EXTENSION.read_text(encoding="utf-8")
+        installer = INSTALLER.read_text(encoding="utf-8")
+
+        self.assertIn(
+            "Recording: 'audio-input-microphone-symbolic'", extension
+        )
+        self.assertIn("add_style_class_name('speaktext-recording')", extension)
+        self.assertIn("remove_style_class_name('speaktext-recording')", extension)
+        self.assertIn('extension/stylesheet.css', installer)
 
 
 if __name__ == "__main__":

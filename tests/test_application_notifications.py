@@ -64,5 +64,27 @@ class StartupProgressTests(unittest.TestCase):
         application._set_startup_progress.assert_not_called()
 
 
+class TestDictationControlsTests(unittest.TestCase):
+    def test_stop_test_remains_available_while_a_test_is_recording(self) -> None:
+        application = SpeakTextApplication.__new__(SpeakTextApplication)
+        application.coordinator = Mock(
+            last_transcript=None,
+            recording_is_test=True,
+        )
+        application.status_row = None
+        application.status_label = None
+        application.cancel_button = None
+        application.copy_button = None
+        application.test_button = Mock()
+        application.control_service = None
+        application.withdraw_notification = Mock()
+        application._notify = Mock()
+
+        application._set_status(DictationState.RECORDING, "Recording…")
+
+        application.test_button.set_sensitive.assert_called_once_with(True)
+        application.test_button.set_label.assert_called_once_with("Stop test")
+
+
 if __name__ == "__main__":
     unittest.main()

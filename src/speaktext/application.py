@@ -404,12 +404,16 @@ class SpeakTextApplication(Adw.Application):
         if self.copy_button:
             self.copy_button.set_sensitive(can_copy)
         if self.test_button:
+            test_is_recording = bool(
+                self.coordinator and self.coordinator.recording_is_test
+            )
             self.test_button.set_sensitive(
-                bool(self.coordinator) and state is DictationState.READY
+                bool(self.coordinator)
+                and (state is DictationState.READY or test_is_recording)
             )
             self.test_button.set_label(
                 "Stop test"
-                if self.coordinator and self.coordinator.recording_is_test
+                if test_is_recording
                 else "Start test"
             )
         if self.control_service:

@@ -146,10 +146,25 @@ class IBusTextService:
             self.factory.destroy()
             self.bus.destroy()
             raise RuntimeError("Could not register the SpeakText IBus engine")
-        if not self.bus.set_global_engine(ENGINE_NAME):
-            self.factory.destroy()
-            self.bus.destroy()
-            raise RuntimeError("Could not activate the SpeakText IBus engine")
+        self.bus.set_global_engine_async(
+            ENGINE_NAME,
+            5_000,
+            None,
+            self._engine_activation_finished,
+            None,
+        )
+
+    @staticmethod
+    def _engine_activation_finished(
+        bus: IBus.Bus, result: object, _user_data: object
+    ) -> None:
+        try:
+            activated = bus.set_global_engine_async_finish(result)
+        except GLib.Error as error:
+            LOGGER.error("Could not activate the SpeakText IBus engine: %s", error)
+            return
+        if not activated:
+            LOGGER.error("Could not activate the SpeakText IBus engine")
 
     @staticmethod
     def _component() -> IBus.Component:

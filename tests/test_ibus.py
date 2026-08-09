@@ -74,7 +74,6 @@ class IBusTextServiceTests(unittest.TestCase):
         bus = Mock()
         bus.is_connected.return_value = True
         bus.register_component.return_value = True
-        bus.set_global_engine.return_value = True
 
         with (
             patch("speaktext.ibus.IBus.Bus", return_value=bus),
@@ -82,24 +81,20 @@ class IBusTextServiceTests(unittest.TestCase):
         ):
             IBusTextService()
 
-        bus.set_global_engine.assert_called_once_with("speaktext")
+        bus.set_global_engine_async.assert_called_once()
+        args = bus.set_global_engine_async.call_args.args
+        self.assertEqual(args[:3], ("speaktext", 5_000, None))
+        self.assertIs(args[3], IBusTextService._engine_activation_finished)
+        self.assertIsNone(args[4])
 
-    def test_initialisation_fails_when_engine_cannot_be_activated(self) -> None:
+    def test_failed_engine_activation_is_logged_without_tearing_down(self) -> None:
         bus = Mock()
-        bus.is_connected.return_value = True
-        bus.register_component.return_value = True
-        bus.set_global_engine.return_value = False
-        factory = Mock()
+        bus.set_global_engine_async_finish.return_value = False
 
-        with (
-            patch("speaktext.ibus.IBus.Bus", return_value=bus),
-            patch("speaktext.ibus.SpeakTextEngineFactory", return_value=factory),
-            self.assertRaisesRegex(RuntimeError, "Could not activate"),
-        ):
-            IBusTextService()
+        with self.assertLogs("speaktext.ibus", level="ERROR") as logs:
+            IBusTextService._engine_activation_finished(bus, Mock(), None)
 
-        factory.destroy.assert_called_once_with()
-        bus.destroy.assert_called_once_with()
+        self.assertIn("Could not activate", logs.output[0])
 
     def _prepare_gesture(self, gesture_key: GestureKey) -> list[str]:
         events: list[str] = []

@@ -77,4 +77,4 @@ if ($null -ne $systemctl) {
     & $systemctl.Source --user daemon-reload 2>$null | Out-Null
 }
 
-Write-Output "Uninstalled SpeakText. Models, legacy settings, and diagnostics were retained."
+Write-Output "Uninstalled SpeakText. Models, settings, and diagnostics were retained."

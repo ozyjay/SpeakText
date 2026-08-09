@@ -60,6 +60,7 @@ class DictationCoordinator:
         injector: Injector,
         on_state: StateCallback,
         on_test_transcript: TestTranscriptCallback | None = None,
+        gesture_label: str = "Shift",
         max_recording_seconds: float = MAX_RECORDING_SECONDS,
         min_recording_seconds: float = MIN_RECORDING_SECONDS,
     ) -> None:
@@ -68,6 +69,7 @@ class DictationCoordinator:
         self.injector = injector
         self.on_state = on_state
         self.on_test_transcript = on_test_transcript
+        self.gesture_label = gesture_label
         self.max_recording_seconds = max_recording_seconds
         self.min_recording_seconds = min_recording_seconds
         self.state = DictationState.STARTING
@@ -83,7 +85,10 @@ class DictationCoordinator:
         except Exception as error:
             self._fail(f"Could not start speech recognition: {error}", recover=False)
             raise
-        self._set_state(DictationState.READY, "Double-tap Shift to dictate")
+        self._set_state(
+            DictationState.READY,
+            f"Double-tap {self.gesture_label} to dictate",
+        )
 
     @property
     def recording_is_test(self) -> bool:

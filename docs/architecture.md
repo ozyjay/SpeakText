@@ -10,7 +10,7 @@ IBus integration remains in Python; model inference remains in the C++ worker.
 GNOME top-bar extension ◄── content-free D-Bus status/control ──► GTK app
                                                                │
 Active SpeakText IBus context
-        │ double-Shift / single-Shift gesture
+        │ configured double-tap / single-tap modifier gesture
         ▼
 DictationCoordinator ──► AudioCapture ──► pw-record ──► PipeWire microphone
         │                       │
@@ -82,12 +82,13 @@ application. The user adds and selects **SpeakText** as a GNOME input source
 while the application is running. The engine passes ordinary key events
 through unchanged.
 
-On Shift key release, the engine recognises a 350 ms double-tap window. A
-double-tap starts or finishes recording. While recording, a single tap cancels
-after that window expires. Because IBus sends these events only to the selected
-engine with an active input context, the gesture cannot start microphone
-capture when SpeakText has nowhere to insert text. Losing that context while
-recording cancels and discards the recording immediately.
+On release of the configured Shift or Control key, the engine recognises a
+350 ms double-tap window. A double-tap starts or finishes recording. While
+recording, a single tap cancels after that window expires. The choice is stored
+under `$XDG_CONFIG_HOME/speaktext`. Because IBus sends these events only to the
+selected engine with an active input context, the gesture cannot start
+microphone capture when SpeakText has nowhere to insert text. Losing that
+context while recording cancels and discards the recording immediately.
 
 When that context remains active at transcription completion,
 `IBusTextInjector` commits the completed UTF-8 transcript directly. No Global
@@ -109,6 +110,7 @@ transcription completes.
 ## Stored paths
 
 - Model: `$XDG_DATA_HOME/speaktext/models/ggml-base.en.bin`
+- Gesture settings: `$XDG_CONFIG_HOME/speaktext/settings.ini`
 - Diagnostics: `$XDG_STATE_HOME/speaktext/speaktext.log`
 - User-local worker: `~/.local/libexec/speaktext/speaktext-worker`
 - GNOME extension:

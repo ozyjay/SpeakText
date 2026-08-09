@@ -96,6 +96,20 @@ class CoordinatorTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(self.coordinator.state, DictationState.READY)
         self.assertIsNone(self.coordinator.last_transcript)
 
+    async def test_ready_message_uses_the_configured_gesture(self) -> None:
+        await self.coordinator.shutdown()
+        self.coordinator = DictationCoordinator(
+            self.capture,
+            self.recogniser,
+            self.injector,
+            lambda state, message: self.states.append((state, message)),
+            gesture_label="Control",
+        )
+
+        await self.coordinator.initialise()
+
+        self.assertEqual(self.states[-1][1], "Double-tap Control to dictate")
+
     async def test_clipboard_result_is_recoverable(self) -> None:
         self.injector.status = InsertionStatus.COPIED
         await self.coordinator.activate()

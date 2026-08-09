@@ -24,6 +24,7 @@ from .ibus import IBusTextInjector, IBusTextService
 from .injector import ClipboardFallback
 from .logging_config import configure_logging
 from .model import ModelManager
+from .settings import GestureKey, SettingsStore
 from .worker import TranscriptionWorker
 
 LOGGER = logging.getLogger(__name__)
@@ -50,6 +51,7 @@ class SpeakTextApplication(Adw.Application):
         self.status_label: Gtk.Label | None = None
         self.shortcut_label: Gtk.Label | None = None
         self.cancel_shortcut_label: Gtk.Label | None = None
+        self.gesture_key_row: Adw.ComboRow | None = None
         self.progress: Gtk.ProgressBar | None = None
         self.copy_button: Gtk.Button | None = None
         self.cancel_button: Gtk.Button | None = None
@@ -71,6 +73,8 @@ class SpeakTextApplication(Adw.Application):
         self._progress_pulse_source: int | None = None
         self._model_download_started = False
         self._model_download_complete = False
+        self.settings_store = SettingsStore()
+        self.gesture_key = self.settings_store.load_gesture_key()
 
     def do_startup(self) -> None:
         Adw.Application.do_startup(self)
@@ -124,19 +128,31 @@ class SpeakTextApplication(Adw.Application):
         status_group.add(self.progress)
 
         shortcut_group = Adw.PreferencesGroup(title="Dictation")
+        self.gesture_key_row = Adw.ComboRow(
+            title="Gesture key",
+            subtitle="Choose the modifier used to control dictation",
+            model=Gtk.StringList.new([key.label for key in GestureKey]),
+        )
+        self.gesture_key_row.set_selected(list(GestureKey).index(self.gesture_key))
+        self.gesture_key_row.connect("notify::selected", self._gesture_key_changed)
+        shortcut_group.add(self.gesture_key_row)
+
+        gesture_label = self.gesture_key.label
         shortcut_row = Adw.ActionRow(
             title="Dictation gesture",
-            subtitle="Double-tap either Shift key to start or finish recording",
+            subtitle="Double-tap either selected key to start or finish recording",
         )
-        self.shortcut_label = Gtk.Label(label="Shift, Shift")
+        self.shortcut_label = Gtk.Label(
+            label=f"{gesture_label}, {gesture_label}"
+        )
         shortcut_row.add_suffix(self.shortcut_label)
         shortcut_group.add(shortcut_row)
 
         cancel_shortcut_row = Adw.ActionRow(
             title="Cancel gesture",
-            subtitle="Tap either Shift key once while recording",
+            subtitle="Tap either selected key once while recording",
         )
-        self.cancel_shortcut_label = Gtk.Label(label="Shift")
+        self.cancel_shortcut_label = Gtk.Label(label=gesture_label)
         cancel_shortcut_row.add_suffix(self.cancel_shortcut_label)
         shortcut_group.add(cancel_shortcut_row)
 
@@ -245,6 +261,7 @@ class SpeakTextApplication(Adw.Application):
                 self._start_or_stop_recording,
                 self._cancel_recording,
                 self._is_recording,
+                self.gesture_key,
             )
         except (GLib.Error, RuntimeError) as error:
             self._setup_error(f"Could not initialise desktop services: {error}")
@@ -283,6 +300,7 @@ class SpeakTextApplication(Adw.Application):
                 injector,
                 self._set_status,
                 self._display_test_transcript,
+                self.gesture_key.label,
             )
             await self.coordinator.initialise()
             self._stop_progress_pulse()
@@ -355,6 +373,42 @@ class SpeakTextApplication(Adw.Application):
             and self.coordinator.state is DictationState.RECORDING
         )
 
+    def _gesture_key_changed(
+        self, row: Adw.ComboRow, _parameter: object
+    ) -> None:
+        gesture_keys = list(GestureKey)
+        selected = row.get_selected()
+        if selected >= len(gesture_keys):
+            return
+        gesture_key = gesture_keys[selected]
+        if gesture_key is self.gesture_key:
+            return
+        self.gesture_key = gesture_key
+        if self.ibus_service:
+            self.ibus_service.set_gesture_key(gesture_key)
+        try:
+            self.settings_store.save_gesture_key(gesture_key)
+        except OSError as error:
+            LOGGER.warning(
+                "Could not save gesture setting: %s", type(error).__name__
+            )
+        self._refresh_gesture_labels()
+        if (
+            self._current_state is DictationState.READY
+            and self._current_message.startswith("Double-tap ")
+        ):
+            self._set_status(
+                DictationState.READY,
+                f"Double-tap {gesture_key.label} to dictate",
+            )
+
+    def _refresh_gesture_labels(self) -> None:
+        label = self.gesture_key.label
+        if self.shortcut_label:
+            self.shortcut_label.set_label(f"{label}, {label}")
+        if self.cancel_shortcut_label:
+            self.cancel_shortcut_label.set_label(label)
+
     def _start_or_stop_recording(self) -> None:
         if not self.coordinator:
             return
@@ -401,6 +455,10 @@ class SpeakTextApplication(Adw.Application):
             self.status_label.set_label(message)
         if self.cancel_button:
             self.cancel_button.set_sensitive(state is DictationState.RECORDING)
+        if self.gesture_key_row:
+            self.gesture_key_row.set_sensitive(
+                state is not DictationState.RECORDING
+            )
         if self.copy_button:
             self.copy_button.set_sensitive(can_copy)
         if self.test_button:
@@ -441,6 +499,7 @@ class SpeakTextApplication(Adw.Application):
                     self._start_or_stop_recording,
                     self._cancel_recording,
                     self._is_recording,
+                    self.gesture_key,
                 )
             except (GLib.Error, RuntimeError) as error:
                 self._setup_error(f"Could not initialise IBus: {error}")

@@ -33,7 +33,7 @@ cannot recover. Do not remove the repository or model directories.
   attended diagnostic session; it emits binary audio to the terminal and must
   be stopped with `Ctrl+C`.
 
-## Shift gesture does not activate
+## Dictation gesture does not activate
 
 - Confirm **SpeakText** appears in GNOME's top-bar input-source menu and select
   it. If it is absent after `make install-user`, log out and back in so IBus
@@ -49,17 +49,15 @@ cannot recover. Do not remove the repository or model directories.
   existing keyboard-layout entry.
 - Focus an editable text control. The engine deliberately receives no gesture
   outside an active IBus text context.
-- Tap Shift twice within about 350 ms. Double-tap again to finish, or tap once
-  while recording to cancel.
+- Confirm the application window shows the intended Shift or Control gesture
+  key. Tap that key twice within about 350 ms. Double-tap again to finish, or
+  tap once while recording to cancel.
 
-## Shift gesture does not activate in VS Code
+## Dictation gesture does not activate in VS Code
 
 SpeakText supports native Wayland applications, not Electron applications
-running through XWayland. The VS Code Snap currently appends
-`--ozone-platform=x11` after user-supplied arguments, so passing
-`--ozone-platform=wayland` to its `code` command does not override the Snap's
-choice. Use a Fedora-installed VS Code package that supports native Wayland;
-the official Microsoft repository receives automatic updates through DNF.
+running through XWayland. Use a Fedora-installed VS Code package that supports
+native Wayland.
 
 Quit every VS Code process before testing a different package or backend.
 Check the main process with `pgrep -a -f '/usr/share/code/code'`; it must not

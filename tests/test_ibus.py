@@ -8,10 +8,11 @@ from gi.repository import IBus
 from speaktext.ibus import (
     IBusTextInjector,
     IBusTextService,
-    ShiftTapAction,
-    ShiftTapGesture,
+    ModifierTapAction,
+    ModifierTapGesture,
 )
 from speaktext.injector import InsertionStatus
+from speaktext.settings import GestureKey
 
 
 class FakeCommitter:
@@ -69,13 +70,18 @@ class IBusTextServiceTests(unittest.TestCase):
         self.assertEqual([engine.get_name() for engine in engines], ["speaktext"])
         self.assertEqual(engines[0].get_layout(), "default")
 
-    def test_only_rapid_shift_releases_trigger_recording(self) -> None:
+    def _prepare_gesture(self, gesture_key: GestureKey) -> list[str]:
         events: list[str] = []
-        self.service.shift_gesture = ShiftTapGesture()
+        self.service.gesture_key = gesture_key
+        self.service.modifier_gesture = ModifierTapGesture()
         self.service._cancel_source = None  # noqa: SLF001
         self.service.is_recording = lambda: False
         self.service.on_start_or_stop = lambda: events.append("toggle")
         self.service.on_cancel = lambda: events.append("cancel")
+        return events
+
+    def test_only_configured_shift_releases_trigger_recording(self) -> None:
+        events = self._prepare_gesture(GestureKey.SHIFT)
         release = int(IBus.ModifierType.RELEASE_MASK)
 
         with patch("speaktext.ibus.monotonic", side_effect=(1.0, 1.2)):
@@ -86,9 +92,30 @@ class IBusTextServiceTests(unittest.TestCase):
 
         self.assertEqual(events, ["toggle"])
 
+    def test_control_can_be_used_for_the_gesture(self) -> None:
+        events = self._prepare_gesture(GestureKey.CONTROL)
+        release = int(IBus.ModifierType.RELEASE_MASK)
+
+        with patch("speaktext.ibus.monotonic", side_effect=(1.0, 1.2)):
+            self.service.process_key_event(IBus.KEY_Shift_L, release)
+            self.service.process_key_event(IBus.KEY_Control_L, release)
+            self.service.process_key_event(IBus.KEY_Control_R, release)
+
+        self.assertEqual(events, ["toggle"])
+
+    def test_changing_gesture_key_resets_a_pending_tap(self) -> None:
+        self._prepare_gesture(GestureKey.SHIFT)
+        self.service.modifier_gesture.pending_at = 1.0
+
+        self.service.set_gesture_key(GestureKey.CONTROL)
+
+        self.assertIsNone(self.service.modifier_gesture.pending_at)
+        self.assertIs(self.service.gesture_key, GestureKey.CONTROL)
+
     def test_losing_context_cancels_an_active_recording(self) -> None:
         events: list[str] = []
-        self.service.shift_gesture = ShiftTapGesture()
+        self.service.gesture_key = GestureKey.SHIFT
+        self.service.modifier_gesture = ModifierTapGesture()
         self.service._cancel_source = None  # noqa: SLF001
         self.service.is_recording = lambda: True
         self.service.on_cancel = lambda: events.append("cancel")
@@ -120,29 +147,29 @@ class IBusTextInjectorTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(clipboard.values, ["hello"])
 
 
-class ShiftTapGestureTests(unittest.TestCase):
+class ModifierTapGestureTests(unittest.TestCase):
     def test_double_tap_starts_or_stops_recording(self) -> None:
-        gesture = ShiftTapGesture(interval=0.35)
+        gesture = ModifierTapGesture(interval=0.35)
 
-        self.assertIs(gesture.tap(False, 1.0), ShiftTapAction.NONE)
+        self.assertIs(gesture.tap(False, 1.0), ModifierTapAction.NONE)
         self.assertIs(
-            gesture.tap(False, 1.2), ShiftTapAction.START_OR_STOP
+            gesture.tap(False, 1.2), ModifierTapAction.START_OR_STOP
         )
 
     def test_single_tap_cancels_only_while_recording(self) -> None:
-        gesture = ShiftTapGesture(interval=0.35)
+        gesture = ModifierTapGesture(interval=0.35)
 
         self.assertIs(
-            gesture.tap(True, 1.0), ShiftTapAction.SCHEDULE_CANCEL
+            gesture.tap(True, 1.0), ModifierTapAction.SCHEDULE_CANCEL
         )
         self.assertFalse(gesture.expire(True, 1.2))
         self.assertTrue(gesture.expire(True, 1.36))
 
     def test_slow_taps_do_not_trigger_dictation(self) -> None:
-        gesture = ShiftTapGesture(interval=0.35)
+        gesture = ModifierTapGesture(interval=0.35)
 
-        self.assertIs(gesture.tap(False, 1.0), ShiftTapAction.NONE)
-        self.assertIs(gesture.tap(False, 1.5), ShiftTapAction.NONE)
+        self.assertIs(gesture.tap(False, 1.0), ModifierTapAction.NONE)
+        self.assertIs(gesture.tap(False, 1.5), ModifierTapAction.NONE)
 
 
 if __name__ == "__main__":

@@ -131,10 +131,6 @@ this isolated check because it must not change the live GNOME session. Verify
 the installed extension and input source interactively using
 [acceptance-testing.md](acceptance-testing.md).
 
-When the installer inherits a Snap-private `XDG_DATA_HOME`, such as from a
-Snap-packaged editor terminal, it uses the host user's `~/.local/share`
-instead. Other explicit `XDG_DATA_HOME` values are preserved.
-
 The uninstaller intentionally retains model, configuration, and state data.
 The installer atomically replaces the persistent native worker, so reinstalling
 while SpeakText is running does not fail with a `Text file busy` error. The

@@ -74,6 +74,7 @@ class TestDictationControlsTests(unittest.TestCase):
         application.status_row = None
         application.status_label = None
         application.cancel_button = None
+        application.gesture_key_row = None
         application.copy_button = None
         application.test_button = Mock()
         application.control_service = None

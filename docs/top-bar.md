@@ -12,7 +12,7 @@ The symbolic icon follows the application state:
 | State | Meaning |
 | --- | --- |
 | Starting | The app identifies whether it is checking, downloading, or loading the local model |
-| Ready | Double-tapping Shift can begin dictation in an active context |
+| Ready | Double-tapping the configured key can begin dictation in an active context |
 | Recording | Microphone capture is active |
 | Transcribing | Local Whisper inference is active |
 | Inserting | The transcript is being committed through IBus |

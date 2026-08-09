@@ -33,8 +33,9 @@ cloud speech services are used.
 ## Desktop permissions
 
 SpeakText uses the local IBus input framework. Its selected engine receives key
-events for the active text context, recognises only Shift releases for the
-dictation gesture, and passes every key event through unchanged. IBus also
+events for the active text context, recognises only releases of the configured
+Shift or Control key for the dictation gesture, and passes every key event
+through unchanged. IBus also
 receives the completed transcript for that active context.
 
 If the SpeakText input method is not active, SpeakText degrades to clipboard

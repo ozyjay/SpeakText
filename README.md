@@ -2,9 +2,10 @@
 
 SpeakText is private, local speech-to-text dictation for Fedora 44 Workstation
 on GNOME Wayland. Select its IBus input source and rapidly tap either Shift key
-twice to start recording; double-tap again to transcribe and insert. A GNOME
-top-bar indicator shows whether SpeakText is
-ready, recording, transcribing, inserting, or needs attention.
+twice to start recording; double-tap again to transcribe and insert. The
+gesture can instead use either Control key. A GNOME top-bar indicator shows
+whether SpeakText is ready, recording, transcribing, inserting, or needs
+attention.
 
 No audio or transcript is written to disk, sent over the network, included in
 diagnostic logs, or retained after successful insertion. The only runtime
@@ -16,10 +17,11 @@ network request is the first model download.
 - Electron applications must use their native Wayland backend; applications
   running through XWayland are not supported.
 - English dictation up to two minutes using `ggml-base.en.bin`.
-- Rapidly double-tap either Shift key to start recording, then double-tap again
-  to finish and transcribe.
-- Tap either Shift key once while recording to cancel after the short
-  double-tap window, discarding the recording immediately.
+- Rapidly double-tap either configured gesture key to start recording, then
+  double-tap again to finish and transcribe. Shift is the default; Control can
+  be selected in the application window.
+- Tap either configured gesture key once while recording to cancel after the
+  short double-tap window, discarding the recording immediately.
 - The gesture is available only while SpeakText is the selected IBus input
   source in an editable context, so it cannot start recording elsewhere.
 - Completed transcripts are committed through the local IBus input method;
@@ -75,7 +77,7 @@ prints the installed build identity before it launches the application.
 The first run downloads and verifies the approximately 142 MiB English model.
 The user installer adds **SpeakText** to GNOME's existing input sources without
 removing any keyboard layouts. Select it from GNOME's input-source menu to
-enable the Shift gesture and native text insertion.
+enable the configured gesture and native text insertion.
 
 SpeakText registers its IBus engine while the application is running, so it is
 not shown by `ibus list-engine`. After starting SpeakText, select it from
@@ -86,14 +88,11 @@ ibus engine speaktext
 ```
 
 To check the currently active engine, run `ibus engine`; it should print
-`speaktext` before testing the Shift gesture.
+`speaktext` before testing the configured gesture.
 
-The VS Code Snap currently appends `--ozone-platform=x11` in its launcher, so
-command-line Wayland flags cannot override it. Use a Fedora-installed VS Code
-package that can run on native Wayland, and quit every existing VS Code process
-before changing its launch flags or backend. Microsoft documents its Fedora
-repository and automatic DNF updates in the
-[VS Code Linux setup guide](https://code.visualstudio.com/docs/setup/linux).
+Electron applications such as VS Code must run with their native Wayland
+backend. Quit every existing application process before changing its launch
+flags or backend.
 
 ## User-local installation
 
@@ -104,13 +103,8 @@ make install-user
 ```
 
 The installer also adds and enables the `speaktext@local` GNOME Shell
-extension and adds **SpeakText** to GNOME's input sources. When run
-from a Snap-packaged terminal or editor, the installer avoids that
-Snap's private data directory and installs into the host user's
-`~/.local/share`. Launches from a Snap terminal are delegated to host D-Bus
-activation. If
-GNOME has not seen a newly installed extension yet, log out and back in, then
-run:
+extension and adds **SpeakText** to GNOME's input sources. If GNOME has not
+seen a newly installed extension yet, log out and back in, then run:
 
 ```powershell
 gnome-extensions enable speaktext@local
@@ -130,8 +124,9 @@ gsettings set org.gnome.desktop.input-sources sources \
   "[('xkb', 'au'), ('ibus', 'speaktext')]"
 ```
 
-Use the microphone icon in the top bar to open the settings window, copy a
-recoverable transcript, or quit. You can also launch **SpeakText** from the
+Use the microphone icon in the top bar to open the settings window, choose
+Shift or Control as the dictation gesture key, copy a recoverable transcript,
+or quit. You can also launch **SpeakText** from the
 GNOME application grid or run `~/.local/bin/speaktext`. Closing the window
 keeps dictation running. The window's **Diagnostics → Build** row identifies
 whether the running application is the development checkout or an installed
@@ -148,8 +143,8 @@ make uninstall-user
 Retained data can be removed manually from:
 
 - `$env:XDG_DATA_HOME/speaktext` (default: `~/.local/share/speaktext`)
-- `$env:XDG_CONFIG_HOME/speaktext` (default: `~/.config/speaktext`; legacy
-  shortcut settings from earlier versions only)
+- `$env:XDG_CONFIG_HOME/speaktext` (default: `~/.config/speaktext`; gesture
+  settings)
 - `$env:XDG_STATE_HOME/speaktext` (default: `~/.local/state/speaktext`)
 
 ## Testing
@@ -171,8 +166,9 @@ native worker and model are available, run the manual acceptance checklist in
   memory.
 - `TranscriptionWorker` owns a persistent C++ process with the model loaded
   once and communicates through a length-prefixed pipe protocol.
-- The IBus engine recognises the Shift gestures only in an active text context
-  and otherwise passes all keyboard events through unchanged.
+- The IBus engine recognises the configured Shift or Control gesture only in an
+  active text context and otherwise passes all keyboard events through
+  unchanged.
 - `IBusTextInjector` commits the completed transcript to that text context.
 - `DictationCoordinator` exclusively owns the application state machine.
 - A small GNOME Shell extension renders the top-bar indicator and talks to the

@@ -13,36 +13,37 @@ from gi.repository import IBus  # noqa: E402
 from gi.repository import GLib  # noqa: E402
 
 from .injector import Clipboard, InsertionOutcome, InsertionStatus
+from .settings import GestureKey
 
 LOGGER = logging.getLogger(__name__)
 ENGINE_NAME = "speaktext"
 COMPONENT_NAME = "local.SpeakText.IBus"
 ENGINE_PATH = "/local/SpeakText/IBus/Engine"
-SHIFT_TAP_INTERVAL_SECONDS = 0.35
+GESTURE_TAP_INTERVAL_SECONDS = 0.35
 
 
-class ShiftTapAction(Enum):
+class ModifierTapAction(Enum):
     NONE = "none"
     START_OR_STOP = "start-or-stop"
     SCHEDULE_CANCEL = "schedule-cancel"
 
 
-class ShiftTapGesture:
-    def __init__(self, interval: float = SHIFT_TAP_INTERVAL_SECONDS) -> None:
+class ModifierTapGesture:
+    def __init__(self, interval: float = GESTURE_TAP_INTERVAL_SECONDS) -> None:
         self.interval = interval
         self.pending_at: float | None = None
 
-    def tap(self, recording: bool, now: float) -> ShiftTapAction:
+    def tap(self, recording: bool, now: float) -> ModifierTapAction:
         if (
             self.pending_at is not None
             and now - self.pending_at <= self.interval
         ):
             self.pending_at = None
-            return ShiftTapAction.START_OR_STOP
+            return ModifierTapAction.START_OR_STOP
         self.pending_at = now
         if recording:
-            return ShiftTapAction.SCHEDULE_CANCEL
-        return ShiftTapAction.NONE
+            return ModifierTapAction.SCHEDULE_CANCEL
+        return ModifierTapAction.NONE
 
     def expire(self, recording: bool, now: float) -> bool:
         if self.pending_at is None or now - self.pending_at < self.interval:
@@ -126,12 +127,14 @@ class IBusTextService:
         on_start_or_stop: Callable[[], None] | None = None,
         on_cancel: Callable[[], None] | None = None,
         is_recording: Callable[[], bool] | None = None,
+        gesture_key: GestureKey = GestureKey.SHIFT,
     ) -> None:
         IBus.init()
         self.on_start_or_stop = on_start_or_stop or (lambda: None)
         self.on_cancel = on_cancel or (lambda: None)
         self.is_recording = is_recording or (lambda: False)
-        self.shift_gesture = ShiftTapGesture()
+        self.gesture_key = gesture_key
+        self.modifier_gesture = ModifierTapGesture()
         self._cancel_source: int | None = None
         self.bus = IBus.Bus()
         if not self.bus.is_connected():
@@ -179,25 +182,25 @@ class IBusTextService:
             self.active_engine = None
 
     def process_key_event(self, keyval: int, state: int) -> None:
-        if keyval not in (IBus.KEY_Shift_L, IBus.KEY_Shift_R):
+        if keyval not in self._gesture_keyvals():
             return
         if not state & int(IBus.ModifierType.RELEASE_MASK):
             return
 
-        action = self.shift_gesture.tap(self.is_recording(), monotonic())
-        if action is ShiftTapAction.START_OR_STOP:
+        action = self.modifier_gesture.tap(self.is_recording(), monotonic())
+        if action is ModifierTapAction.START_OR_STOP:
             self._clear_cancel_source()
             self.on_start_or_stop()
-        elif action is ShiftTapAction.SCHEDULE_CANCEL:
+        elif action is ModifierTapAction.SCHEDULE_CANCEL:
             self._clear_cancel_source()
             self._cancel_source = GLib.timeout_add(
-                round(SHIFT_TAP_INTERVAL_SECONDS * 1_000) + 10,
+                round(GESTURE_TAP_INTERVAL_SECONDS * 1_000) + 10,
                 self._cancel_after_single_tap,
             )
 
     def _cancel_after_single_tap(self) -> bool:
         self._cancel_source = None
-        if self.shift_gesture.expire(self.is_recording(), monotonic()):
+        if self.modifier_gesture.expire(self.is_recording(), monotonic()):
             self.on_cancel()
         return GLib.SOURCE_REMOVE
 
@@ -206,17 +209,26 @@ class IBusTextService:
             GLib.source_remove(self._cancel_source)
             self._cancel_source = None
 
-    def reset_shift_gesture(self) -> None:
+    def _gesture_keyvals(self) -> tuple[int, int]:
+        if self.gesture_key is GestureKey.CONTROL:
+            return (IBus.KEY_Control_L, IBus.KEY_Control_R)
+        return (IBus.KEY_Shift_L, IBus.KEY_Shift_R)
+
+    def set_gesture_key(self, gesture_key: GestureKey) -> None:
+        self.reset_modifier_gesture()
+        self.gesture_key = gesture_key
+
+    def reset_modifier_gesture(self) -> None:
         self._clear_cancel_source()
-        self.shift_gesture.reset()
+        self.modifier_gesture.reset()
 
     def context_lost(self) -> None:
-        self.reset_shift_gesture()
+        self.reset_modifier_gesture()
         if self.is_recording():
             self.on_cancel()
 
     def close(self) -> None:
-        self.reset_shift_gesture()
+        self.reset_modifier_gesture()
         self.active_engine = None
         self.factory.destroy()
         self.bus.destroy()

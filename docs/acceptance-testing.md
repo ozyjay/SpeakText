@@ -10,11 +10,12 @@ in an unattended session.
 2. Start SpeakText from the top-bar menu; confirm startup identifies whether it
    is checking the local model, downloading it with byte progress, or loading
    speech recognition. The checking and loading stages show an active progress
-   bar; the first model load can take up to 90 seconds.
+   bar; the first model load can take up to 90 seconds. Confirm `ibus engine`
+   reports `speaktext` without running `ibus engine speaktext` manually.
 3. Confirm the installer retained the existing keyboard layouts and added
-   **SpeakText** to GNOME's input-source menu. Select it and confirm no Global
-   Shortcuts or Remote Desktop prompt and no orange remote-access indicator
-   appears. Confirm `ibus engine` reports `speaktext`; do not expect this
+   **SpeakText** to GNOME's input-source menu. Confirm it was selected when the
+   application started and that no Global Shortcuts or Remote Desktop prompt
+   and no orange remote-access indicator appears. Do not expect this
    runtime-registered engine in `ibus list-engine`.
 4. Confirm the top-bar icon and status text follow Ready, Recording,
    Transcribing, Inserting, and Error states without routine desktop
@@ -53,8 +54,9 @@ in an unattended session.
    no crash or stale recording.
 13. Leave a recording active for two minutes; confirm automatic stop and
     transcription.
-14. Restart SpeakText and dictate again; confirm IBus insertion remains
-    available without a Remote Desktop prompt.
+14. Restart the machine, start SpeakText, and dictate again; confirm the engine
+    is selected automatically and IBus insertion remains available without a
+    Remote Desktop prompt.
 15. Search `$XDG_CONFIG_HOME`, `$XDG_STATE_HOME`, and `/tmp` for distinctive
     dictated words. Confirm that neither transcripts nor PCM data were written.
 

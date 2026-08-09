@@ -38,11 +38,12 @@ cannot recover. Do not remove the repository or model directories.
 - Confirm **SpeakText** appears in GNOME's top-bar input-source menu and select
   it. If it is absent after `make install-user`, log out and back in so IBus
   reloads the installed component descriptor.
-- Reopen SpeakText and use **Retry setup**.
-- While SpeakText is running, use `ibus engine speaktext` to activate it
-  directly, then use `ibus engine` to confirm the active engine is `speaktext`.
-  Do not use `ibus list-engine` for this check; it omits engines registered by
-  running applications.
+- Reopen SpeakText and use **Retry setup**. Startup normally activates the
+  engine automatically.
+- While SpeakText is running, use `ibus engine` to confirm the active engine is
+  `speaktext`. If it is not, use `ibus engine speaktext` as a diagnostic
+  fallback. Do not use `ibus list-engine` for this check; it omits engines
+  registered by running applications.
 - Check `gsettings get org.gnome.desktop.input-sources sources` for
   `('ibus', 'speaktext')`. If it is missing, rerun `make install-user` or use
   the manual `gsettings set` example in the README while retaining every

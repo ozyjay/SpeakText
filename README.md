@@ -76,19 +76,19 @@ prints the installed build identity before it launches the application.
 
 The first run downloads and verifies the approximately 142 MiB English model.
 The user installer adds **SpeakText** to GNOME's existing input sources without
-removing any keyboard layouts. Select it from GNOME's input-source menu to
-enable the configured gesture and native text insertion.
+removing any keyboard layouts. Starting SpeakText registers and selects that
+input source automatically, including the first time it runs after a reboot.
 
 SpeakText registers its IBus engine while the application is running, so it is
-not shown by `ibus list-engine`. After starting SpeakText, select it from
-GNOME's input-source menu or activate it directly:
+not shown by `ibus list-engine`. If automatic selection fails, activate it
+directly as a diagnostic fallback:
 
 ```bash
 ibus engine speaktext
 ```
 
 To check the currently active engine, run `ibus engine`; it should print
-`speaktext` before testing the configured gesture.
+`speaktext` after SpeakText starts and before testing the configured gesture.
 
 Electron applications such as VS Code must run with their native Wayland
 backend. Quit every existing application process before changing its launch

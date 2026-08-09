@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import unittest
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 from gi.repository import IBus
 
@@ -69,6 +69,37 @@ class IBusTextServiceTests(unittest.TestCase):
         self.assertEqual(component.get_exec(), "speaktext")
         self.assertEqual([engine.get_name() for engine in engines], ["speaktext"])
         self.assertEqual(engines[0].get_layout(), "default")
+
+    def test_initialisation_activates_the_registered_engine(self) -> None:
+        bus = Mock()
+        bus.is_connected.return_value = True
+        bus.register_component.return_value = True
+        bus.set_global_engine.return_value = True
+
+        with (
+            patch("speaktext.ibus.IBus.Bus", return_value=bus),
+            patch("speaktext.ibus.SpeakTextEngineFactory"),
+        ):
+            IBusTextService()
+
+        bus.set_global_engine.assert_called_once_with("speaktext")
+
+    def test_initialisation_fails_when_engine_cannot_be_activated(self) -> None:
+        bus = Mock()
+        bus.is_connected.return_value = True
+        bus.register_component.return_value = True
+        bus.set_global_engine.return_value = False
+        factory = Mock()
+
+        with (
+            patch("speaktext.ibus.IBus.Bus", return_value=bus),
+            patch("speaktext.ibus.SpeakTextEngineFactory", return_value=factory),
+            self.assertRaisesRegex(RuntimeError, "Could not activate"),
+        ):
+            IBusTextService()
+
+        factory.destroy.assert_called_once_with()
+        bus.destroy.assert_called_once_with()
 
     def _prepare_gesture(self, gesture_key: GestureKey) -> list[str]:
         events: list[str] = []

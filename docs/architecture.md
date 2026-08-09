@@ -78,9 +78,9 @@ The coordinator enforces a 120-second recording limit. The worker accepts up to
 ## IBus input context
 
 SpeakText dynamically registers an IBus engine for the lifetime of the
-application. The user adds and selects **SpeakText** as a GNOME input source
-while the application is running. The engine passes ordinary key events
-through unchanged.
+application and selects it after registration. The user installer adds
+**SpeakText** as a GNOME input source without removing existing keyboard
+layouts. The engine passes ordinary key events through unchanged.
 
 On release of the configured Shift or Control key, the engine recognises a
 350 ms double-tap window. A double-tap starts or finishes recording. While

@@ -39,6 +39,10 @@ cannot recover. Do not remove the repository or model directories.
   it. If it is absent after `make install-user`, log out and back in so IBus
   reloads the installed component descriptor.
 - Reopen SpeakText and use **Retry setup**.
+- While SpeakText is running, use `ibus engine speaktext` to activate it
+  directly, then use `ibus engine` to confirm the active engine is `speaktext`.
+  Do not use `ibus list-engine` for this check; it omits engines registered by
+  running applications.
 - Check `gsettings get org.gnome.desktop.input-sources sources` for
   `('ibus', 'speaktext')`. If it is missing, rerun `make install-user` or use
   the manual `gsettings set` example in the README while retaining every
@@ -47,6 +51,20 @@ cannot recover. Do not remove the repository or model directories.
   outside an active IBus text context.
 - Tap Shift twice within about 350 ms. Double-tap again to finish, or tap once
   while recording to cancel.
+
+## Shift gesture does not activate in VS Code
+
+SpeakText supports native Wayland applications, not Electron applications
+running through XWayland. Quit every VS Code window, then start the VS Code
+Snap with:
+
+```bash
+code --ozone-platform=wayland --enable-wayland-ime
+```
+
+Check the main process with `pgrep -a -f '/usr/share/code/code'`. It must show
+`--ozone-platform=wayland`, not `--ozone-platform=x11`. Starting another window
+does not change the backend of an existing VS Code process.
 
 ## Text is copied instead of inserted
 

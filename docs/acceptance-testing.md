@@ -14,7 +14,8 @@ in an unattended session.
 3. Confirm the installer retained the existing keyboard layouts and added
    **SpeakText** to GNOME's input-source menu. Select it and confirm no Global
    Shortcuts or Remote Desktop prompt and no orange remote-access indicator
-   appears.
+   appears. Confirm `ibus engine` reports `speaktext`; do not expect this
+   runtime-registered engine in `ibus list-engine`.
 4. Confirm the top-bar icon and status text follow Ready, Recording,
    Transcribing, Inserting, and Error states without routine desktop
    notifications.
@@ -23,9 +24,12 @@ in an unattended session.
    result**, no text is inserted elsewhere, and **Clear test result** removes
    it. Close and reopen the window to confirm any displayed test text is
    cleared.
-6. In GNOME Text Editor, Firefox, VS Code, and Ptyxis, place the cursor in an
-   editable area, rapidly tap either Shift key twice, speak for five to ten
-   seconds, double-tap Shift again, and confirm insertion at the current cursor.
+6. In GNOME Text Editor, Firefox, native-Wayland VS Code, and Ptyxis, place the
+   cursor in an editable area, rapidly tap either Shift key twice, speak for
+   five to ten seconds, double-tap Shift again, and confirm insertion at the
+   current cursor. For the VS Code Snap, first quit every existing window and
+   launch `code --ozone-platform=wayland --enable-wayland-ime`; confirm its main
+   process does not contain `--ozone-platform=x11`.
 7. Start a recording, choose **Cancel recording** from the top-bar menu, and
    confirm immediate return to Ready with no transcription, insertion, or
    clipboard change. Repeat with the button in the SpeakText window, then start

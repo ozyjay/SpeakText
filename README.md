@@ -13,6 +13,8 @@ network request is the first model download.
 ## Platform and behaviour
 
 - Fedora 44 Workstation, GNOME 50, and Wayland only.
+- Electron applications must use their native Wayland backend; applications
+  running through XWayland are not supported.
 - English dictation up to two minutes using `ggml-base.en.bin`.
 - Rapidly double-tap either Shift key to start recording, then double-tap again
   to finish and transcribe.
@@ -74,6 +76,27 @@ The first run downloads and verifies the approximately 142 MiB English model.
 The user installer adds **SpeakText** to GNOME's existing input sources without
 removing any keyboard layouts. Select it from GNOME's input-source menu to
 enable the Shift gesture and native text insertion.
+
+SpeakText registers its IBus engine while the application is running, so it is
+not shown by `ibus list-engine`. After starting SpeakText, select it from
+GNOME's input-source menu or activate it directly:
+
+```bash
+ibus engine speaktext
+```
+
+To check the currently active engine, run `ibus engine`; it should print
+`speaktext` before testing the Shift gesture.
+
+For the VS Code Snap, quit every VS Code window before testing and launch it
+with its native Wayland input-method support:
+
+```bash
+code --ozone-platform=wayland --enable-wayland-ime
+```
+
+If an existing VS Code process is still running under XWayland, a new command
+reuses that process and the flags do not take effect.
 
 ## User-local installation
 

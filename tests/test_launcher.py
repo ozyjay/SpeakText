@@ -43,6 +43,7 @@ class LauncherTests(unittest.TestCase):
         self.assertIn("SPEAKTEXT_SKIP_INPUT_SOURCE", source)
         self.assertIn("$entries, ('ibus', 'speaktext')", source)
         self.assertIn("SpeakText input source already configured", source)
+        self.assertIn("ibus engine speaktext", source)
 
     def test_ibus_component_is_discoverable_and_installed(self):
         root = ET.parse(IBUS_COMPONENT).getroot()

@@ -49,6 +49,9 @@ Starting → Ready → Recording → Transcribing → Inserting → Ready
   stop if no finishing gesture is received.
 - Cancelling stops microphone capture, discards its in-memory PCM, and returns
   directly to `Ready` without transcription or insertion.
+- The in-window microphone test follows the same capture and transcription
+  path, but returns the recognised text only to the GTK window and never calls
+  the IBus injector.
 - Recordings shorter than 300 ms and empty PCM buffers are discarded.
 - Runtime errors are reported and return to `Ready`; model-startup failures stay
   visible until setup is retried.

@@ -54,6 +54,10 @@ class SpeakTextApplication(Adw.Application):
         self.copy_button: Gtk.Button | None = None
         self.cancel_button: Gtk.Button | None = None
         self.retry_button: Gtk.Button | None = None
+        self.test_button: Gtk.Button | None = None
+        self.clear_test_button: Gtk.Button | None = None
+        self.test_result_label: Gtk.Label | None = None
+        self._test_transcript: str | None = None
         self.model_manager = ModelManager()
         self.ibus_service: IBusTextService | None = None
         self.coordinator: DictationCoordinator | None = None
@@ -146,6 +150,38 @@ class SpeakTextApplication(Adw.Application):
         privacy_row.set_subtitle_lines(3)
         shortcut_group.add(privacy_row)
 
+        test_group = Adw.PreferencesGroup(title="Test dictation")
+        test_row = Adw.ActionRow(
+            title="Microphone test",
+            subtitle="Speak a short sample, then stop recording to view it here.",
+        )
+        self.test_button = Gtk.Button(label="Start test")
+        self.test_button.set_sensitive(False)
+        self.test_button.connect(
+            "clicked", lambda *_args: self._start_or_stop_test()
+        )
+        test_row.add_suffix(self.test_button)
+        test_group.add(test_row)
+
+        test_result_row = Adw.ActionRow(
+            title="Test result",
+            subtitle="Shown only in this window until cleared, replaced, or SpeakText exits.",
+        )
+        self.test_result_label = Gtk.Label(label="No test transcript yet")
+        self.test_result_label.set_wrap(True)
+        self.test_result_label.set_selectable(True)
+        self.test_result_label.set_xalign(0)
+        self.test_result_label.set_max_width_chars(35)
+        test_result_row.add_suffix(self.test_result_label)
+        test_group.add(test_result_row)
+
+        self.clear_test_button = Gtk.Button(label="Clear test result")
+        self.clear_test_button.set_sensitive(False)
+        self.clear_test_button.connect(
+            "clicked", lambda *_args: self._clear_test_transcript()
+        )
+        test_result_row.add_suffix(self.clear_test_button)
+
         diagnostics_group = Adw.PreferencesGroup(title="Diagnostics")
         diagnostics_group.add(
             Adw.ActionRow(title="Build", subtitle=BUILD_LABEL)
@@ -178,12 +214,17 @@ class SpeakTextApplication(Adw.Application):
         content.set_margin_end(18)
         content.append(status_group)
         content.append(shortcut_group)
+        content.append(test_group)
         content.append(diagnostics_group)
         content.append(actions)
 
+        scroll = Gtk.ScrolledWindow()
+        scroll.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
+        scroll.set_child(content)
+
         toolbar = Adw.ToolbarView()
         toolbar.add_top_bar(header)
-        toolbar.set_content(content)
+        toolbar.set_content(scroll)
         window.set_content(toolbar)
         self._set_status(self._current_state, self._current_message)
         self._refresh_startup_progress()
@@ -191,8 +232,10 @@ class SpeakTextApplication(Adw.Application):
             self._start_progress_pulse()
         return window
 
-    @staticmethod
-    def _hide_window(window: Adw.ApplicationWindow) -> bool:
+    def _hide_window(self, window: Adw.ApplicationWindow) -> bool:
+        if self.coordinator and self.coordinator.recording_is_test:
+            self._cancel_recording()
+        self._clear_test_transcript()
         window.set_visible(False)
         return True
 
@@ -235,7 +278,11 @@ class SpeakTextApplication(Adw.Application):
                 ClipboardFallback(),
             )
             self.coordinator = DictationCoordinator(
-                AudioCapture(), recogniser, injector, self._set_status
+                AudioCapture(),
+                recogniser,
+                injector,
+                self._set_status,
+                self._display_test_transcript,
             )
             await self.coordinator.initialise()
             self._stop_progress_pulse()
@@ -316,6 +363,34 @@ class SpeakTextApplication(Adw.Application):
         else:
             self.loop.create_task(self.coordinator.activate())
 
+    def _start_or_stop_test(self) -> None:
+        if not self.coordinator:
+            return
+        if self.coordinator.state is DictationState.RECORDING:
+            if self.test_button:
+                self.test_button.set_sensitive(False)
+            self.loop.create_task(self.coordinator.deactivate())
+            return
+        if self.coordinator.state is DictationState.READY:
+            self._clear_test_transcript()
+            if self.test_button:
+                self.test_button.set_sensitive(False)
+            self.loop.create_task(self.coordinator.activate(test=True))
+
+    def _display_test_transcript(self, transcript: str) -> None:
+        self._test_transcript = transcript
+        if self.test_result_label:
+            self.test_result_label.set_label(transcript)
+        if self.clear_test_button:
+            self.clear_test_button.set_sensitive(True)
+
+    def _clear_test_transcript(self) -> None:
+        self._test_transcript = None
+        if self.test_result_label:
+            self.test_result_label.set_label("No test transcript yet")
+        if self.clear_test_button:
+            self.clear_test_button.set_sensitive(False)
+
     def _set_status(self, state: DictationState, message: str) -> None:
         self._current_state = state
         self._current_message = message
@@ -328,6 +403,15 @@ class SpeakTextApplication(Adw.Application):
             self.cancel_button.set_sensitive(state is DictationState.RECORDING)
         if self.copy_button:
             self.copy_button.set_sensitive(can_copy)
+        if self.test_button:
+            self.test_button.set_sensitive(
+                bool(self.coordinator) and state is DictationState.READY
+            )
+            self.test_button.set_label(
+                "Stop test"
+                if self.coordinator and self.coordinator.recording_is_test
+                else "Start test"
+            )
         if self.control_service:
             self.control_service.update(state.value, message, can_copy)
 

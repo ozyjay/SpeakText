@@ -45,6 +45,7 @@ class Injector(Protocol):
 
 
 StateCallback = Callable[[DictationState, str], None]
+TestTranscriptCallback = Callable[[str], None]
 
 
 def normalise_transcript(transcript: str) -> str:
@@ -58,6 +59,7 @@ class DictationCoordinator:
         recogniser: Recogniser,
         injector: Injector,
         on_state: StateCallback,
+        on_test_transcript: TestTranscriptCallback | None = None,
         max_recording_seconds: float = MAX_RECORDING_SECONDS,
         min_recording_seconds: float = MIN_RECORDING_SECONDS,
     ) -> None:
@@ -65,11 +67,13 @@ class DictationCoordinator:
         self.recogniser = recogniser
         self.injector = injector
         self.on_state = on_state
+        self.on_test_transcript = on_test_transcript
         self.max_recording_seconds = max_recording_seconds
         self.min_recording_seconds = min_recording_seconds
         self.state = DictationState.STARTING
         self.last_transcript: str | None = None
         self._recording_started = 0.0
+        self._recording_is_test = False
         self._limit_task: asyncio.Task[None] | None = None
         self._operation_lock = asyncio.Lock()
 
@@ -81,7 +85,11 @@ class DictationCoordinator:
             raise
         self._set_state(DictationState.READY, "Double-tap Shift to dictate")
 
-    async def activate(self) -> None:
+    @property
+    def recording_is_test(self) -> bool:
+        return self.state is DictationState.RECORDING and self._recording_is_test
+
+    async def activate(self, *, test: bool = False) -> None:
         async with self._operation_lock:
             if self.state is not DictationState.READY:
                 return
@@ -91,6 +99,7 @@ class DictationCoordinator:
                 self._fail(f"Could not start the microphone: {error}")
                 return
             self._recording_started = monotonic()
+            self._recording_is_test = test
             self._set_state(DictationState.RECORDING, "Recording…")
             self._limit_task = asyncio.create_task(self._enforce_limit())
 
@@ -107,6 +116,7 @@ class DictationCoordinator:
             if self._limit_task:
                 self._limit_task.cancel()
                 self._limit_task = None
+            self._recording_is_test = False
             try:
                 await self.capture.cancel()
             except Exception as error:
@@ -116,6 +126,8 @@ class DictationCoordinator:
             return True
 
     async def _finish_recording(self) -> None:
+        recording_is_test = self._recording_is_test
+        self._recording_is_test = False
         if self._limit_task and self._limit_task is not asyncio.current_task():
             self._limit_task.cancel()
         self._limit_task = None
@@ -137,6 +149,12 @@ class DictationCoordinator:
             return
         if not transcript:
             self._set_state(DictationState.READY, "No speech detected")
+            return
+
+        if recording_is_test:
+            if self.on_test_transcript:
+                self.on_test_transcript(transcript)
+            self._set_state(DictationState.READY, "Test transcription ready")
             return
 
         self._set_state(DictationState.INSERTING, "Inserting text…")
@@ -176,6 +194,7 @@ class DictationCoordinator:
         if self._limit_task:
             self._limit_task.cancel()
         if self.state is DictationState.RECORDING:
+            self._recording_is_test = False
             await self.capture.cancel()
         await self.recogniser.stop()
 

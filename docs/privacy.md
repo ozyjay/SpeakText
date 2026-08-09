@@ -9,6 +9,7 @@ processing.
 | --- | --- | --- |
 | Microphone PCM | Python process memory and worker pipe | Current recording and transcription |
 | Transcript | Process memory and active IBus context | Cleared after successful insertion |
+| Test transcript | Process memory and application window | Until cleared, replaced, the window closes, or the app exits |
 | Failed transcript | Process memory and optionally clipboard | Until copied, replaced, or the app exits |
 | Whisper model | XDG data directory | Until manually removed |
 | Diagnostics | XDG state directory | Rotating local files |

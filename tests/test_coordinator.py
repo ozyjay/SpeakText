@@ -105,6 +105,21 @@ class CoordinatorTests(unittest.IsolatedAsyncioTestCase):
         self.coordinator.copied_last_transcript()
         self.assertIsNone(self.coordinator.last_transcript)
 
+    async def test_in_window_test_transcribes_without_inserting(self) -> None:
+        results: list[str] = []
+        self.coordinator.on_test_transcript = results.append
+
+        await self.coordinator.activate(test=True)
+        self.assertTrue(self.coordinator.recording_is_test)
+        await self.coordinator.deactivate()
+
+        self.assertEqual(results, ["hello world"])
+        self.assertEqual(self.injector.values, [])
+        self.assertIsNone(self.coordinator.last_transcript)
+        self.assertFalse(self.coordinator.recording_is_test)
+        self.assertEqual(self.coordinator.state, DictationState.READY)
+        self.assertEqual(self.states[-1][1], "Test transcription ready")
+
     async def test_silence_does_not_inject(self) -> None:
         self.recogniser.transcript = "<|nospeech|> [NO_SPEECH]"
         await self.coordinator.activate()

@@ -27,6 +27,9 @@ network request is the first model download.
   and shows a notification.
 - The application window and top-bar menu can cancel an active recording,
   immediately discarding its in-memory audio without transcription.
+- The application window includes an optional **Test dictation** control for a
+  short microphone check. Its recognised text is shown only in the window; it
+  is never inserted into another application.
 - The top-bar menu can also open the settings window, copy recoverable text,
   and quit SpeakText. It never receives audio or transcript text.
 - Wayland does not expose the original focused application. Text goes to the
@@ -98,7 +101,8 @@ recoverable transcript, or quit. You can also launch **SpeakText** from the
 GNOME application grid or run `~/.local/bin/speaktext`. Closing the window
 keeps dictation running. The window's **Diagnostics → Build** row identifies
 whether the running application is the development checkout or an installed
-build revision.
+build revision. Use **Test dictation** to check a short spoken sample without
+inserting it at the current cursor; clear the visible result when finished.
 
 To remove executables and desktop metadata while retaining the downloaded
 model and settings:

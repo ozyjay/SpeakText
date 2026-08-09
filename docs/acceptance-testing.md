@@ -27,9 +27,9 @@ in an unattended session.
 6. In GNOME Text Editor, Firefox, native-Wayland VS Code, and Ptyxis, place the
    cursor in an editable area, rapidly tap either Shift key twice, speak for
    five to ten seconds, double-tap Shift again, and confirm insertion at the
-   current cursor. For the VS Code Snap, first quit every existing window and
-   launch `code --ozone-platform=wayland --enable-wayland-ime`; confirm its main
-   process does not contain `--ozone-platform=x11`.
+   current cursor. The VS Code Snap is unsuitable while its launcher forces
+   `--ozone-platform=x11`; use a Fedora-installed native-Wayland build and
+   confirm its main process does not contain that argument.
 7. Start a recording, choose **Cancel recording** from the top-bar menu, and
    confirm immediate return to Ready with no transcription, insertion, or
    clipboard change. Repeat with the button in the SpeakText window, then start

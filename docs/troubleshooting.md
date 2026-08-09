@@ -55,16 +55,15 @@ cannot recover. Do not remove the repository or model directories.
 ## Shift gesture does not activate in VS Code
 
 SpeakText supports native Wayland applications, not Electron applications
-running through XWayland. Quit every VS Code window, then start the VS Code
-Snap with:
+running through XWayland. The VS Code Snap currently appends
+`--ozone-platform=x11` after user-supplied arguments, so passing
+`--ozone-platform=wayland` to its `code` command does not override the Snap's
+choice. Use a Fedora-installed VS Code package that supports native Wayland;
+the official Microsoft repository receives automatic updates through DNF.
 
-```bash
-code --ozone-platform=wayland --enable-wayland-ime
-```
-
-Check the main process with `pgrep -a -f '/usr/share/code/code'`. It must show
-`--ozone-platform=wayland`, not `--ozone-platform=x11`. Starting another window
-does not change the backend of an existing VS Code process.
+Quit every VS Code process before testing a different package or backend.
+Check the main process with `pgrep -a -f '/usr/share/code/code'`; it must not
+show `--ozone-platform=x11`.
 
 ## Text is copied instead of inserted
 

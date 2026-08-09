@@ -88,15 +88,12 @@ ibus engine speaktext
 To check the currently active engine, run `ibus engine`; it should print
 `speaktext` before testing the Shift gesture.
 
-For the VS Code Snap, quit every VS Code window before testing and launch it
-with its native Wayland input-method support:
-
-```bash
-code --ozone-platform=wayland --enable-wayland-ime
-```
-
-If an existing VS Code process is still running under XWayland, a new command
-reuses that process and the flags do not take effect.
+The VS Code Snap currently appends `--ozone-platform=x11` in its launcher, so
+command-line Wayland flags cannot override it. Use a Fedora-installed VS Code
+package that can run on native Wayland, and quit every existing VS Code process
+before changing its launch flags or backend. Microsoft documents its Fedora
+repository and automatic DNF updates in the
+[VS Code Linux setup guide](https://code.visualstudio.com/docs/setup/linux).
 
 ## User-local installation
 

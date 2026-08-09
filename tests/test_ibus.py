@@ -34,8 +34,8 @@ class FakeClipboard:
 
 class FakeEngine:
     def __init__(self) -> None:
-        self.enabled = False
-        self.focused = False
+        self._speaktext_enabled = False
+        self._speaktext_focused = False
         self.values: list[str] = []
 
     def commit_text(self, text: object) -> None:
@@ -49,14 +49,14 @@ class IBusTextServiceTests(unittest.TestCase):
         self.engine = FakeEngine()
 
     def test_commits_only_while_engine_is_enabled_and_focused(self) -> None:
-        self.engine.enabled = True
-        self.engine.focused = True
+        self.engine._speaktext_enabled = True
+        self.engine._speaktext_focused = True
         self.service.engine_state_changed(self.engine)  # type: ignore[arg-type]
 
         self.assertTrue(self.service.commit("hello"))
         self.assertEqual(self.engine.values, ["hello"])
 
-        self.engine.focused = False
+        self.engine._speaktext_focused = False
         self.service.engine_state_changed(self.engine)  # type: ignore[arg-type]
         self.assertFalse(self.service.commit("hidden"))
 

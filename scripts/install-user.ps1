@@ -15,8 +15,8 @@ $applicationsDir = Join-Path $dataHome "applications"
 $iconsDir = Join-Path $dataHome "icons/hicolor/scalable/apps"
 $dbusServicesDir = Join-Path $dataHome "dbus-1/services"
 $ibusComponentDir = Join-Path $dataHome "ibus/component"
-$systemdUserDir = Join-Path $installPaths.UserHome ".config/systemd/user"
-$ibusServiceDropInDir = Join-Path $systemdUserDir "org.freedesktop.IBus.session.GNOME.service.d"
+$obsoleteIbusDropInDir = Join-Path $installPaths.UserHome ".config/systemd/user/org.freedesktop.IBus.session.GNOME.service.d"
+$obsoleteIbusDropInPath = Join-Path $obsoleteIbusDropInDir "10-speaktext-component-path.conf"
 $extensionUuid = "speaktext@local"
 $extensionDir = Join-Path $dataHome "gnome-shell/extensions/$extensionUuid"
 $workerSource = Join-Path $projectDir "build/speaktext-worker"
@@ -72,7 +72,6 @@ if (-not $skipExtensionEnable -and $null -ne $gnomeExtensions) {
     $iconsDir,
     $dbusServicesDir,
     $ibusComponentDir,
-    $ibusServiceDropInDir,
     $extensionDir
 ) | ForEach-Object {
     $null = New-Item -ItemType Directory -Path $_ -Force
@@ -124,17 +123,6 @@ $ibusComponent = (Get-Content (Join-Path $projectDir "data/local.SpeakText.ibus.
     Replace("@EXEC@", $launcherPath)
 $ibusComponentPath = Join-Path $ibusComponentDir "local.SpeakText.xml"
 Set-Content -LiteralPath $ibusComponentPath -Value $ibusComponent -NoNewline -Encoding utf8
-$escapedIbusComponentPath = $ibusComponentDir.
-    Replace("\", "\\").
-    Replace('"', '\"').
-    Replace("%", "%%")
-$ibusServiceDropIn = @"
-[Service]
-Environment="IBUS_COMPONENT_PATH=${escapedIbusComponentPath}:/usr/share/ibus/component"
-"@
-$ibusServiceDropInPath = Join-Path $ibusServiceDropInDir "10-speaktext-component-path.conf"
-Set-Content -LiteralPath $ibusServiceDropInPath -Value $ibusServiceDropIn `
-    -NoNewline -Encoding utf8
 Copy-Item -LiteralPath (Join-Path $projectDir "extension/extension.js") `
     -Destination (Join-Path $extensionDir "extension.js") -Force
 Copy-Item -LiteralPath (Join-Path $projectDir "extension/metadata.json") `
@@ -146,7 +134,6 @@ Copy-Item -LiteralPath (Join-Path $projectDir "extension/metadata.json") `
     $desktopPath,
     $dbusServicePath,
     $ibusComponentPath,
-    $ibusServiceDropInPath,
     (Join-Path $iconsDir "local.SpeakText.svg"),
     (Join-Path $extensionDir "extension.js"),
     (Join-Path $extensionDir "metadata.json")
@@ -179,15 +166,21 @@ finally {
     }
 }
 
-if (-not $skipInputSource) {
+$removedObsoleteIbusDropIn = $false
+if (Test-Path -LiteralPath $obsoleteIbusDropInPath -PathType Leaf) {
+    Remove-Item -LiteralPath $obsoleteIbusDropInPath -Force
+    $removedObsoleteIbusDropIn = $true
+    try {
+        [IO.Directory]::Delete($obsoleteIbusDropInDir, $false)
+    }
+    catch [IO.IOException] {
+        # Retain a non-empty drop-in directory.
+    }
+}
+if ($removedObsoleteIbusDropIn) {
     $systemctl = Get-Command systemctl -ErrorAction SilentlyContinue
     if ($null -ne $systemctl) {
-        & $systemctl.Source --user daemon-reload 2>$null
-        if ($LASTEXITCODE -ne 0) {
-            [Console]::Error.WriteLine(
-                "Could not reload user services; log out and back in before selecting SpeakText."
-            )
-        }
+        & $systemctl.Source --user daemon-reload 2>$null | Out-Null
     }
 }
 

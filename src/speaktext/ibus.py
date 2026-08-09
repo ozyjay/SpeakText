@@ -68,24 +68,27 @@ class SpeakTextEngine(IBus.Engine):
             object_path=object_path,
         )
         self.service = service
-        self.enabled = False
-        self.focused = False
+        # IBus.Engine exposes enabled and has_focus as native fields. Keep the
+        # coordinator's state separate because PyGObject rejects assigning to
+        # inherited native fields on current Fedora releases.
+        self._speaktext_enabled = False
+        self._speaktext_focused = False
 
     def do_enable(self) -> None:
-        self.enabled = True
+        self._speaktext_enabled = True
         self.service.engine_state_changed(self)
 
     def do_disable(self) -> None:
-        self.enabled = False
+        self._speaktext_enabled = False
         self.service.engine_state_changed(self)
         self.service.context_lost()
 
     def do_focus_in(self) -> None:
-        self.focused = True
+        self._speaktext_focused = True
         self.service.engine_state_changed(self)
 
     def do_focus_out(self) -> None:
-        self.focused = False
+        self._speaktext_focused = False
         self.service.engine_state_changed(self)
         self.service.context_lost()
 
@@ -96,8 +99,8 @@ class SpeakTextEngine(IBus.Engine):
         return False
 
     def do_destroy(self) -> None:
-        self.enabled = False
-        self.focused = False
+        self._speaktext_enabled = False
+        self._speaktext_focused = False
         self.service.engine_state_changed(self)
         super().do_destroy()
 
@@ -170,7 +173,7 @@ class IBusTextService:
         return component
 
     def engine_state_changed(self, engine: SpeakTextEngine) -> None:
-        if engine.enabled and engine.focused:
+        if engine._speaktext_enabled and engine._speaktext_focused:
             self.active_engine = engine
         elif self.active_engine is engine:
             self.active_engine = None

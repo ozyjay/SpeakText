@@ -43,12 +43,6 @@ class LauncherTests(unittest.TestCase):
         self.assertIn("SPEAKTEXT_SKIP_INPUT_SOURCE", source)
         self.assertIn("$entries, ('ibus', 'speaktext')", source)
         self.assertIn("SpeakText input source already configured", source)
-        self.assertIn("IBUS_COMPONENT_PATH=", source)
-        self.assertIn("org.freedesktop.IBus.session.GNOME.service.d", source)
-        self.assertIn(
-            "10-speaktext-component-path.conf",
-            UNINSTALLER.read_text(encoding="utf-8"),
-        )
 
     def test_ibus_component_is_discoverable_and_installed(self):
         root = ET.parse(IBUS_COMPONENT).getroot()

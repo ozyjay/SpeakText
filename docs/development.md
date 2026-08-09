@@ -135,10 +135,6 @@ When the installer inherits a Snap-private `XDG_DATA_HOME`, such as from a
 Snap-packaged editor terminal, it uses the host user's `~/.local/share`
 instead. Other explicit `XDG_DATA_HOME` values are preserved.
 
-The installer adds a user-service drop-in under `~/.config/systemd/user` so
-Fedora's GNOME IBus service loads the user-local component directory. The
-uninstaller removes that drop-in.
-
 The uninstaller intentionally retains model, configuration, and state data.
 The installer atomically replaces the persistent native worker, so reinstalling
 while SpeakText is running does not fail with a `Text file busy` error. The

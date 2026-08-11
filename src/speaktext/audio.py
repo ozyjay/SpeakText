@@ -26,6 +26,7 @@ class AudioCapture:
         self._process_factory = process_factory or asyncio.create_subprocess_exec
         self._process: asyncio.subprocess.Process | None = None
         self._reader_task: asyncio.Task[bytes] | None = None
+        self._pcm = bytearray()
 
     @property
     def recording(self) -> bool:
@@ -58,9 +59,21 @@ class AudioCapture:
             process.kill()
             raise AudioCaptureError("PipeWire capture did not expose an audio stream")
 
+        self._pcm.clear()
         self._process = process
-        self._reader_task = asyncio.create_task(process.stdout.read())
+        self._reader_task = asyncio.create_task(self._read_pcm(process.stdout))
         LOGGER.info("audio capture started")
+
+    async def _read_pcm(self, stream: asyncio.StreamReader) -> bytes:
+        while chunk := await stream.read(4_096):
+            self._pcm.extend(chunk)
+        return bytes(self._pcm)
+
+    def snapshot(self) -> bytes:
+        """Return an in-memory copy suitable for provisional recognition."""
+        if not self.recording:
+            return b""
+        return bytes(self._pcm)
 
     async def stop(self) -> bytes:
         process = self._process
@@ -82,7 +95,9 @@ class AudioCapture:
             process.kill()
             await process.wait()
 
-        pcm = await reader_task
+        await reader_task
+        pcm = bytes(self._pcm)
+        self._pcm.clear()
         stderr = b""
         if process.stderr is not None:
             stderr = await process.stderr.read()
@@ -107,4 +122,5 @@ class AudioCapture:
         if reader_task is not None:
             reader_task.cancel()
             await asyncio.gather(reader_task, return_exceptions=True)
+        self._pcm.clear()
         LOGGER.info("audio capture cancelled")

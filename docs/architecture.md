@@ -36,19 +36,20 @@ owner of the state transition.
 `DictationCoordinator` exclusively owns this sequence:
 
 ```text
-Starting → Ready → Recording → Transcribing → Inserting → Ready
-                   │              │              │
-                   └──────────────┴──────────────┴──► Error → Ready
-                   │
-                   └── cancel → Ready
+Starting → Ready → Recording → Transcribing → Reviewing → Inserting → Ready
+                   │              │                 │             │
+                   └──────────────┴─────────────────┴─────────────┴──► Error → Ready
+                   │                                │
+                   └────────────── cancel ──────────┴──► Ready
 ```
 
 - Activation is accepted only in `Ready`.
 - Repeated activation while busy is ignored.
 - A second rapid double-tap stops recording; a two-minute timer provides a hard
-  stop if no finishing gesture is received.
-- Cancelling stops microphone capture, discards its in-memory PCM, and returns
-  directly to `Ready` without transcription or insertion.
+  stop if no finishing gesture is received. A third double-tap commits the
+  completed preview.
+- Cancelling stops microphone capture or discards a review preview, then returns
+  directly to `Ready` without committing text.
 - The in-window microphone test follows the same capture and transcription
   path, but returns the recognised text only to the GTK window and never calls
   the IBus injector.
@@ -59,8 +60,11 @@ Starting → Ready → Recording → Transcribing → Inserting → Ready
 ## Audio and transcription protocol
 
 `AudioCapture` starts `pw-record` with raw 16 kHz, mono, signed-16 output and
-reads stdout directly into memory. It sends `SIGINT` to close capture cleanly and
-kills the process only when shutdown times out.
+reads stdout directly into memory. While recording, the coordinator sends a
+complete in-memory snapshot to the existing worker approximately every 2.5
+seconds and displays each recognised result as a provisional IBus pre-edit.
+The most recent words can change as more audio arrives. It sends `SIGINT` to
+close capture cleanly and kills the process only when shutdown times out.
 
 The native worker loads `ggml-base.en.bin` once, prints `READY\n`, then processes
 one request at a time:
@@ -83,29 +87,33 @@ application and selects it after registration. The user installer adds
 layouts. The engine passes ordinary key events through unchanged.
 
 On release of the configured Shift or Control key, the engine recognises a
-350 ms double-tap window. A double-tap starts or finishes recording. While
-recording, a single tap cancels after that window expires. The choice is stored
-under `$XDG_CONFIG_HOME/speaktext`. Because IBus sends these events only to the
+350 ms double-tap window. A double-tap starts or finishes recording, and a
+double-tap while reviewing commits the preview. While recording or reviewing,
+a single tap cancels after that window expires. The choice is stored under
+`$XDG_CONFIG_HOME/speaktext`. Because IBus sends these events only to the
 selected engine with an active input context, the gesture cannot start
 microphone capture when SpeakText has nowhere to insert text. Losing that
-context while recording cancels and discards the recording immediately.
+context while recording cancels and discards the recording immediately; losing
+it while reviewing clears and discards the uncommitted pre-edit.
 
-When that context remains active at transcription completion,
-`IBusTextInjector` commits the completed UTF-8 transcript directly. No Global
-Shortcuts or Remote Desktop portal session and no synthetic keyboard event is
-used.
+`IBusTextService` renders each provisional transcript with IBus pre-edit APIs;
+that text is visible at the active cursor but is not committed to the target
+application. When the user confirms the final preview while that context
+remains active, `IBusTextInjector` commits the complete UTF-8 transcript. No
+Global Shortcuts or Remote Desktop portal session and no synthetic keyboard
+event is used.
 
 ## Insertion and recovery
 
-`IBusTextInjector` commits the complete transcript as one text operation.
+`IBusTextInjector` commits a confirmed complete preview as one text operation.
 
 - If the SpeakText input method is not active in an editable context, the
   complete transcript is copied to the clipboard.
 - Successful insertion clears the in-memory recovery transcript.
 
 Wayland deliberately prevents SpeakText from discovering or restoring the
-original application focus. Insertion therefore targets the cursor focused when
-transcription completes.
+original application focus. The provisional pre-edit belongs to its current
+IBus context, so an uncommitted preview is discarded if that context is lost.
 
 ## Stored paths
 

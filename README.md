@@ -2,10 +2,11 @@
 
 SpeakText is private, local speech-to-text dictation for Fedora 44 Workstation
 on GNOME Wayland. Select its IBus input source and rapidly tap either Shift key
-twice to start recording; double-tap again to transcribe and insert. The
-gesture can instead use either Control key. A GNOME top-bar indicator shows
-whether SpeakText is ready, recording, transcribing, inserting, or needs
-attention.
+twice to start recording. SpeakText shows a revisable in-place preview while
+you speak; double-tap again to stop and review it, then double-tap once more to
+commit it. The gesture can instead use either Control key. A GNOME top-bar
+indicator shows whether SpeakText is ready, recording, transcribing, reviewing,
+committing, or needs attention.
 
 No audio or transcript is written to disk, sent over the network, included in
 diagnostic logs, or retained after successful insertion. The only runtime
@@ -18,13 +19,15 @@ network request is the first model download.
   running through XWayland are not supported.
 - English dictation up to two minutes using `ggml-base.en.bin`.
 - Rapidly double-tap either configured gesture key to start recording, then
-  double-tap again to finish and transcribe. Shift is the default; Control can
-  be selected in the application window.
-- Tap either configured gesture key once while recording to cancel after the
-  short double-tap window, discarding the recording immediately.
+  double-tap again to stop and complete the provisional preview. Double-tap a
+  third time to commit the preview. Shift is the default; Control can be
+  selected in the application window.
+- Tap either configured gesture key once while recording or reviewing to
+  discard the recording or preview after the short double-tap window.
 - The gesture is available only while SpeakText is the selected IBus input
   source in an editable context, so it cannot start recording elsewhere.
-- Completed transcripts are committed through the local IBus input method;
+- Provisional transcripts are shown through the local IBus input method and
+  are committed only after confirmation;
   SpeakText does not request Remote Desktop, screen, pointer, or synthetic
   keyboard access.
 - If the SpeakText input method is inactive, SpeakText copies the transcript
@@ -36,8 +39,9 @@ network request is the first model download.
   is never inserted into another application.
 - The top-bar menu can also open the settings window, copy recoverable text,
   and quit SpeakText. It never receives audio or transcript text.
-- Wayland does not expose the original focused application. Text goes to the
-  cursor focused when transcription finishes.
+- Wayland does not expose the original focused application. The preview and
+  confirmed text stay at the current active IBus cursor; losing that context
+  discards an uncommitted preview.
 
 ## Build
 
@@ -163,13 +167,14 @@ native worker and model are available, run the manual acceptance checklist in
 ## Architecture
 
 - `AudioCapture` streams raw 16 kHz mono signed-16 PCM from `pw-record` into
-  memory.
+  memory and makes periodic in-memory snapshots for provisional recognition.
 - `TranscriptionWorker` owns a persistent C++ process with the model loaded
   once and communicates through a length-prefixed pipe protocol.
 - The IBus engine recognises the configured Shift or Control gesture only in an
   active text context and otherwise passes all keyboard events through
   unchanged.
-- `IBusTextInjector` commits the completed transcript to that text context.
+- `IBusTextService` renders provisional text as IBus pre-edit text; only a
+  confirmed preview is committed to that text context.
 - `DictationCoordinator` exclusively owns the application state machine.
 - A small GNOME Shell extension renders the top-bar indicator and talks to the
   application over a content-free local D-Bus control interface.

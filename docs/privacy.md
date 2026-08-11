@@ -8,7 +8,8 @@ processing.
 | Data | Location | Lifetime |
 | --- | --- | --- |
 | Microphone PCM | Python process memory and worker pipe | Current recording and transcription |
-| Transcript | Process memory and active IBus context | Cleared after successful insertion |
+| Provisional transcript | Process memory and active IBus pre-edit context | Replaced during recognition; cleared on discard, context loss, or commit |
+| Confirmed transcript | Process memory and active IBus context | Cleared after successful insertion |
 | Test transcript | Process memory and application window | Until cleared, replaced, the window closes, or the app exits |
 | Failed transcript | Process memory and optionally clipboard | Until copied, replaced, or the app exits |
 | Whisper model | XDG data directory | Until manually removed |
@@ -36,13 +37,15 @@ SpeakText uses the local IBus input framework. Its selected engine receives key
 events for the active text context, recognises only releases of the configured
 Shift or Control key for the dictation gesture, and passes every key event
 through unchanged. IBus also
-receives the completed transcript for that active context.
+receives provisional pre-edit updates and a confirmed transcript for that active
+context.
 
 If the SpeakText input method is not active, SpeakText degrades to clipboard
 recovery. It does not request Remote Desktop, screen, pointer, touchscreen, or
 synthetic keyboard access or global keyboard hooks.
 Losing the active IBus context while recording cancels capture and discards its
-in-memory PCM.
+in-memory PCM. Losing it while reviewing clears and discards the uncommitted
+preview.
 
 ## Top-bar interface
 
@@ -55,9 +58,10 @@ never sent to GNOME Shell.
 
 ## Wayland limitations
 
-SpeakText cannot inspect which application or control owns focus. The transcript
-is inserted wherever the cursor is focused when recognition completes. Users
-should avoid changing focus to sensitive fields while transcription is running.
+SpeakText cannot inspect which application or control owns focus. A provisional
+preview is tied to the active IBus context and is discarded when that context is
+lost. Confirmed text is committed to that current context. Users should avoid
+changing focus to sensitive fields while dictating or reviewing.
 
 Protected fields may decline input-method commits. SpeakText never inspects the
 surrounding text or reads content from the focused application.

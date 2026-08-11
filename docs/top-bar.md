@@ -15,14 +15,15 @@ The symbolic icon follows the application state:
 | Ready | Double-tapping the configured key can begin dictation in an active context |
 | Recording | Microphone capture is active; the microphone icon turns red without moving |
 | Transcribing | Local Whisper inference is active |
-| Inserting | The transcript is being committed through IBus |
+| Reviewing | A provisional transcript is visible only in the active IBus pre-edit; it has not been committed |
+| Inserting | A confirmed transcript is being committed through IBus |
 | Error | Setup or dictation needs attention |
 | Disconnected | The application is not running |
 
-Its menu can open or start SpeakText, cancel an active recording, copy an
-explicitly retained recovery transcript, and quit the application. Cancelling
-and copying are performed inside the Python process; neither PCM nor text is
-returned to the extension.
+Its menu can open or start SpeakText, cancel an active recording or discard a
+preview, copy an explicitly retained recovery transcript, and quit the
+application. Cancelling and copying are performed inside the Python process;
+neither PCM nor text is returned to the extension.
 
 Routine recording, transcription, insertion, and successful-completion states
 are shown only through the top-bar icon and its status text. Desktop

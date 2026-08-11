@@ -41,6 +41,7 @@ const ICONS = {
     Ready: 'audio-input-microphone-symbolic',
     Recording: 'audio-input-microphone-symbolic',
     Transcribing: 'content-loading-symbolic',
+    Reviewing: 'document-edit-symbolic',
     Inserting: 'document-send-symbolic',
     Error: 'dialog-error-symbolic',
     Disconnected: 'microphone-disabled-symbolic',
@@ -138,7 +139,8 @@ class SpeakTextIndicator extends PanelMenu.Button {
         else
             this._icon.remove_style_class_name('speaktext-recording');
         this._statusItem.label.text = message || state;
-        this._cancelItem.setSensitive(state === 'Recording');
+        this._cancelItem.setSensitive(state === 'Recording' || state === 'Reviewing');
+        this._cancelItem.label.text = state === 'Reviewing' ? 'Discard preview' : 'Cancel recording';
         this._copyItem.setSensitive(canCopy);
         this.accessible_name = `SpeakText: ${state}`;
     }

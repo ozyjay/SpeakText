@@ -38,9 +38,17 @@ class FakeEngine:
         self._speaktext_enabled = False
         self._speaktext_focused = False
         self.values: list[str] = []
+        self.preedits: list[tuple[str, int, bool]] = []
+        self.preedit_hidden = 0
 
     def commit_text(self, text: object) -> None:
         self.values.append(text.get_text())  # type: ignore[attr-defined]
+
+    def update_preedit_text(self, text: object, cursor: int, visible: bool) -> None:
+        self.preedits.append((text.get_text(), cursor, visible))  # type: ignore[attr-defined]
+
+    def hide_preedit_text(self) -> None:
+        self.preedit_hidden += 1
 
 
 class IBusTextServiceTests(unittest.TestCase):
@@ -60,6 +68,19 @@ class IBusTextServiceTests(unittest.TestCase):
         self.engine._speaktext_focused = False
         self.service.engine_state_changed(self.engine)  # type: ignore[arg-type]
         self.assertFalse(self.service.commit("hidden"))
+
+    def test_updates_and_clears_preedit_only_in_the_active_context(self) -> None:
+        self.engine._speaktext_enabled = True
+        self.engine._speaktext_focused = True
+        self.service.engine_state_changed(self.engine)  # type: ignore[arg-type]
+
+        self.assertTrue(self.service.update_preedit("hello"))
+        self.assertEqual(self.engine.preedits, [("hello", 5, True)])
+        self.assertTrue(self.service.clear_preedit())
+        self.assertEqual(self.engine.preedit_hidden, 1)
+
+        self.service.active_engine = None
+        self.assertFalse(self.service.update_preedit("hidden"))
 
     def test_dynamic_component_metadata_declares_the_engine(self) -> None:
         component = IBusTextService._component()  # noqa: SLF001

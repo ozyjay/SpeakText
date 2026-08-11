@@ -28,6 +28,9 @@ class FakeCapture:
     async def cancel(self) -> None:
         self.cancelled += 1
 
+    def snapshot(self) -> bytes:
+        return self.pcm if self.started > self.stopped else b""
+
 
 class FakeRecogniser:
     def __init__(self, transcript: str = " hello world ") -> None:
@@ -85,16 +88,46 @@ class CoordinatorTests(unittest.IsolatedAsyncioTestCase):
     async def asyncTearDown(self) -> None:
         await self.coordinator.shutdown()
 
-    async def test_full_dictation_flow(self) -> None:
+    async def test_full_dictation_flow_requires_explicit_commit(self) -> None:
         await self.coordinator.activate()
         await self.coordinator.activate()
         await self.coordinator.deactivate()
 
         self.assertEqual(self.capture.started, 1)
         self.assertEqual(self.capture.stopped, 1)
+        self.assertEqual(self.injector.values, [])
+        self.assertEqual(self.coordinator.state, DictationState.REVIEWING)
+
+        self.assertTrue(await self.coordinator.commit_preview())
+
         self.assertEqual(self.injector.values, ["hello world"])
         self.assertEqual(self.coordinator.state, DictationState.READY)
         self.assertIsNone(self.coordinator.last_transcript)
+
+    async def test_final_transcript_is_shown_as_a_preview_before_commit(self) -> None:
+        previews: list[str] = []
+        cleared: list[bool] = []
+        self.coordinator.on_preview = previews.append
+        self.coordinator.on_clear_preview = lambda: cleared.append(True)
+
+        await self.coordinator.activate()
+        await self.coordinator.deactivate()
+
+        self.assertEqual(previews, ["hello world"])
+        self.assertEqual(self.injector.values, [])
+        self.assertTrue(await self.coordinator.cancel_recording())
+        self.assertEqual(cleared, [True])
+        self.assertEqual(self.coordinator.state, DictationState.READY)
+
+    async def test_provisional_transcript_updates_while_recording(self) -> None:
+        previews: list[str] = []
+        self.coordinator.on_preview = previews.append
+        self.coordinator.preview_interval_seconds = 0.001
+
+        await self.coordinator.activate()
+        await asyncio.sleep(0.01)
+
+        self.assertIn("hello world", previews)
 
     async def test_ready_message_uses_the_configured_gesture(self) -> None:
         await self.coordinator.shutdown()
@@ -114,6 +147,7 @@ class CoordinatorTests(unittest.IsolatedAsyncioTestCase):
         self.injector.status = InsertionStatus.COPIED
         await self.coordinator.activate()
         await self.coordinator.deactivate()
+        await self.coordinator.commit_preview()
         self.assertEqual(self.coordinator.last_transcript, "hello world")
 
         self.coordinator.copied_last_transcript()
@@ -185,6 +219,7 @@ class CoordinatorTests(unittest.IsolatedAsyncioTestCase):
 
         await self.coordinator.activate()
         await self.coordinator.deactivate()
+        await self.coordinator.commit_preview()
 
         self.assertEqual(self.injector.values, ["hello world"])
         self.assertEqual(self.coordinator.last_transcript, "hello world")

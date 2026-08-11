@@ -80,18 +80,18 @@ class SpeakTextEngine(IBus.Engine):
         self.service.engine_state_changed(self)
 
     def do_disable(self) -> None:
+        self.service.context_lost(self)
         self._speaktext_enabled = False
         self.service.engine_state_changed(self)
-        self.service.context_lost()
 
     def do_focus_in(self) -> None:
         self._speaktext_focused = True
         self.service.engine_state_changed(self)
 
     def do_focus_out(self) -> None:
+        self.service.context_lost(self)
         self._speaktext_focused = False
         self.service.engine_state_changed(self)
-        self.service.context_lost()
 
     def do_process_key_event(
         self, keyval: int, _keycode: int, state: int
@@ -100,6 +100,7 @@ class SpeakTextEngine(IBus.Engine):
         return False
 
     def do_destroy(self) -> None:
+        self.service.context_lost(self)
         self._speaktext_enabled = False
         self._speaktext_focused = False
         self.service.engine_state_changed(self)
@@ -241,8 +242,9 @@ class IBusTextService:
         self._clear_cancel_source()
         self.modifier_gesture.reset()
 
-    def context_lost(self) -> None:
+    def context_lost(self, engine: SpeakTextEngine | None = None) -> None:
         self.reset_modifier_gesture()
+        self.clear_preedit(engine)
         if self.is_recording():
             self.on_cancel()
 
@@ -257,9 +259,34 @@ class IBusTextService:
         if engine is None:
             return False
         try:
+            engine.hide_preedit_text()
             engine.commit_text(IBus.Text.new_from_string(text))
         except Exception as error:
             LOGGER.warning("IBus text commit failed: %s", type(error).__name__)
+            return False
+        return True
+
+    def update_preedit(self, text: str) -> bool:
+        engine = self.active_engine
+        if engine is None:
+            return False
+        try:
+            engine.update_preedit_text(
+                IBus.Text.new_from_string(text), len(text), True
+            )
+        except Exception as error:
+            LOGGER.warning("IBus pre-edit update failed: %s", type(error).__name__)
+            return False
+        return True
+
+    def clear_preedit(self, engine: SpeakTextEngine | None = None) -> bool:
+        target = engine or self.active_engine
+        if target is None:
+            return False
+        try:
+            target.hide_preedit_text()
+        except Exception as error:
+            LOGGER.warning("IBus pre-edit clear failed: %s", type(error).__name__)
             return False
         return True
 

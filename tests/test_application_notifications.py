@@ -12,8 +12,9 @@ class StatusNotificationTests(unittest.TestCase):
         routine_states = (
             (DictationState.RECORDING, "Recording…"),
             (DictationState.TRANSCRIBING, "Transcribing…"),
+            (DictationState.REVIEWING, "Preview ready"),
             (DictationState.INSERTING, "Inserting text…"),
-            (DictationState.READY, "Text inserted"),
+            (DictationState.READY, "Text committed"),
         )
 
         for state, message in routine_states:

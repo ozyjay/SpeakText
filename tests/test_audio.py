@@ -10,8 +10,12 @@ from speaktext.audio import AudioCapture
 class Buffer:
     def __init__(self, value: bytes) -> None:
         self.value = value
+        self._read = False
 
-    async def read(self) -> bytes:
+    async def read(self, _size: int = -1) -> bytes:
+        if self._read:
+            return b""
+        self._read = True
         return self.value
 
 
@@ -56,4 +60,3 @@ class AudioCaptureTests(unittest.IsolatedAsyncioTestCase):
 
 if __name__ == "__main__":
     unittest.main()
-

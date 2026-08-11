@@ -140,7 +140,7 @@ class SpeakTextApplication(Adw.Application):
         gesture_label = self.gesture_key.label
         shortcut_row = Adw.ActionRow(
             title="Dictation gesture",
-            subtitle="Double-tap either selected key to start or finish recording",
+            subtitle="Double-tap to start, stop, then commit the preview",
         )
         self.shortcut_label = Gtk.Label(
             label=f"{gesture_label}, {gesture_label}"
@@ -150,7 +150,7 @@ class SpeakTextApplication(Adw.Application):
 
         cancel_shortcut_row = Adw.ActionRow(
             title="Cancel gesture",
-            subtitle="Tap either selected key once while recording",
+            subtitle="Tap either selected key once while recording or reviewing",
         )
         self.cancel_shortcut_label = Gtk.Label(label=gesture_label)
         cancel_shortcut_row.add_suffix(self.cancel_shortcut_label)
@@ -160,7 +160,7 @@ class SpeakTextApplication(Adw.Application):
             title="Local processing",
             subtitle=(
                 "Audio is kept in memory and sent only to the local Whisper worker. "
-                "Wayland inserts into the cursor focused when transcription finishes."
+                "A preview stays uncommitted until you confirm it at the active cursor."
             ),
         )
         privacy_row.set_subtitle_lines(3)
@@ -300,6 +300,8 @@ class SpeakTextApplication(Adw.Application):
                 injector,
                 self._set_status,
                 self._display_test_transcript,
+                ibus_service.update_preedit,
+                ibus_service.clear_preedit,
                 self.gesture_key.label,
             )
             await self.coordinator.initialise()
@@ -370,7 +372,7 @@ class SpeakTextApplication(Adw.Application):
     def _is_recording(self) -> bool:
         return bool(
             self.coordinator
-            and self.coordinator.state is DictationState.RECORDING
+            and self.coordinator.can_cancel
         )
 
     def _gesture_key_changed(
@@ -414,6 +416,8 @@ class SpeakTextApplication(Adw.Application):
             return
         if self.coordinator.state is DictationState.RECORDING:
             self.loop.create_task(self.coordinator.deactivate())
+        elif self.coordinator.state is DictationState.REVIEWING:
+            self.loop.create_task(self.coordinator.commit_preview())
         else:
             self.loop.create_task(self.coordinator.activate())
 
@@ -454,7 +458,12 @@ class SpeakTextApplication(Adw.Application):
         if self.status_label:
             self.status_label.set_label(message)
         if self.cancel_button:
-            self.cancel_button.set_sensitive(state is DictationState.RECORDING)
+            self.cancel_button.set_sensitive(
+                state in (DictationState.RECORDING, DictationState.REVIEWING)
+            )
+            self.cancel_button.set_label(
+                "Discard preview" if state is DictationState.REVIEWING else "Cancel recording"
+            )
         if self.gesture_key_row:
             self.gesture_key_row.set_sensitive(
                 state is not DictationState.RECORDING
@@ -510,7 +519,7 @@ class SpeakTextApplication(Adw.Application):
     def _cancel_recording(self) -> None:
         if (
             self.coordinator
-            and self.coordinator.state is DictationState.RECORDING
+            and self.coordinator.can_cancel
         ):
             self.loop.create_task(self.coordinator.cancel_recording())
 

@@ -51,8 +51,9 @@ cannot recover. Do not remove the repository or model directories.
 - Focus an editable text control. The engine deliberately receives no gesture
   outside an active IBus text context.
 - Confirm the application window shows the intended Shift or Control gesture
-  key. Tap that key twice within about 350 ms. Double-tap again to finish, or
-  tap once while recording to cancel.
+  key. Tap that key twice within about 350 ms. Double-tap again to stop and
+  review, then double-tap once more to commit; tap once while recording or
+  reviewing to discard.
 
 ## Dictation gesture does not activate in VS Code
 
@@ -67,14 +68,14 @@ show `--ozone-platform=x11`.
 ## Text is copied instead of inserted
 
 Select **SpeakText** in GNOME's input-source menu and keep an editable field
-focused until transcription finishes. Clipboard fallback is expected if that
-IBus context disappears after recording starts.
+focused until you confirm the preview. Clipboard fallback is expected only if
+the IBus context becomes unavailable during a confirmed commit.
 
 ## Text appears in the wrong application
 
-This is expected if focus changes during transcription. Wayland does not allow
-SpeakText to inspect or restore the original target. Keep the intended cursor
-focused until insertion completes.
+An uncommitted preview is deliberately discarded if its IBus context changes.
+Wayland does not allow SpeakText to inspect or restore the original target.
+Keep the intended cursor focused until you commit the preview.
 
 ## Insertion is incomplete
 

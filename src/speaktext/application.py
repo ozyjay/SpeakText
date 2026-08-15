@@ -56,6 +56,7 @@ class SpeakTextApplication(Adw.Application):
         self.copy_button: Gtk.Button | None = None
         self.cancel_button: Gtk.Button | None = None
         self.retry_button: Gtk.Button | None = None
+        self.reactivate_input_button: Gtk.Button | None = None
         self.test_button: Gtk.Button | None = None
         self.clear_test_button: Gtk.Button | None = None
         self.test_result_label: Gtk.Label | None = None
@@ -155,6 +156,18 @@ class SpeakTextApplication(Adw.Application):
         self.cancel_shortcut_label = Gtk.Label(label=gesture_label)
         cancel_shortcut_row.add_suffix(self.cancel_shortcut_label)
         shortcut_group.add(cancel_shortcut_row)
+
+        input_source_row = Adw.ActionRow(
+            title="Input source",
+            subtitle="Reactivate SpeakText if its gesture stops responding",
+        )
+        self.reactivate_input_button = Gtk.Button(label="Reactivate")
+        self.reactivate_input_button.set_sensitive(False)
+        self.reactivate_input_button.connect(
+            "clicked", lambda *_args: self._reactivate_input_source()
+        )
+        input_source_row.add_suffix(self.reactivate_input_button)
+        shortcut_group.add(input_source_row)
 
         privacy_row = Adw.ActionRow(
             title="Local processing",
@@ -309,6 +322,8 @@ class SpeakTextApplication(Adw.Application):
             self._set_startup_progress("Model ready", fraction=1.0)
             if self.retry_button:
                 self.retry_button.set_sensitive(False)
+            if self.reactivate_input_button:
+                self.reactivate_input_button.set_sensitive(True)
         except Exception as error:
             self.coordinator = None
             self._setup_error(str(error))
@@ -421,6 +436,25 @@ class SpeakTextApplication(Adw.Application):
         else:
             self.loop.create_task(self.coordinator.activate())
 
+    def _reactivate_input_source(self) -> None:
+        if not self.ibus_service:
+            return
+        if self.reactivate_input_button:
+            self.reactivate_input_button.set_sensitive(False)
+        self.ibus_service.activate_engine(self._input_source_reactivated)
+
+    def _input_source_reactivated(self, activated: bool) -> None:
+        if self.reactivate_input_button:
+            self.reactivate_input_button.set_sensitive(True)
+        if activated:
+            self._set_status(
+                DictationState.READY,
+                "SpeakText input source reactivated; double-tap "
+                f"{self.gesture_key.label} to dictate",
+            )
+        else:
+            self._setup_error("Could not reactivate the SpeakText input source")
+
     def _start_or_stop_test(self) -> None:
         if not self.coordinator:
             return
@@ -470,6 +504,11 @@ class SpeakTextApplication(Adw.Application):
             )
         if self.copy_button:
             self.copy_button.set_sensitive(can_copy)
+        reactivate_input_button = getattr(self, "reactivate_input_button", None)
+        if reactivate_input_button:
+            reactivate_input_button.set_sensitive(
+                bool(self.coordinator) and state is DictationState.READY
+            )
         if self.test_button:
             test_is_recording = bool(
                 self.coordinator and self.coordinator.recording_is_test

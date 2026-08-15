@@ -5,6 +5,7 @@ from unittest.mock import Mock
 
 from speaktext.application import SpeakTextApplication, status_notification
 from speaktext.coordinator import DictationState
+from speaktext.settings import GestureKey
 
 
 class StatusNotificationTests(unittest.TestCase):
@@ -66,6 +67,32 @@ class StartupProgressTests(unittest.TestCase):
 
 
 class TestDictationControlsTests(unittest.TestCase):
+    def test_reactivate_input_source_requests_ibus_engine_activation(self) -> None:
+        application = SpeakTextApplication.__new__(SpeakTextApplication)
+        application.ibus_service = Mock()
+        application.reactivate_input_button = Mock()
+
+        application._reactivate_input_source()
+
+        application.reactivate_input_button.set_sensitive.assert_called_once_with(False)
+        application.ibus_service.activate_engine.assert_called_once_with(
+            application._input_source_reactivated
+        )
+
+    def test_reactivated_input_source_updates_ready_status(self) -> None:
+        application = SpeakTextApplication.__new__(SpeakTextApplication)
+        application.reactivate_input_button = Mock()
+        application.gesture_key = GestureKey.CONTROL
+        application._set_status = Mock()
+
+        application._input_source_reactivated(True)
+
+        application.reactivate_input_button.set_sensitive.assert_called_once_with(True)
+        application._set_status.assert_called_once_with(
+            DictationState.READY,
+            "SpeakText input source reactivated; double-tap Control to dictate",
+        )
+
     def test_stop_test_remains_available_while_a_test_is_recording(self) -> None:
         application = SpeakTextApplication.__new__(SpeakTextApplication)
         application.coordinator = Mock(

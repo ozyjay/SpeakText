@@ -3,7 +3,7 @@ from __future__ import annotations
 import unittest
 from unittest.mock import Mock, patch
 
-from gi.repository import IBus
+from gi.repository import GLib, IBus
 
 from speaktext.ibus import (
     IBusTextInjector,
@@ -116,6 +116,30 @@ class IBusTextServiceTests(unittest.TestCase):
             IBusTextService._engine_activation_finished(bus, Mock(), None)
 
         self.assertIn("Could not activate", logs.output[0])
+
+    def test_reactivate_engine_reports_success_to_its_callback(self) -> None:
+        bus = Mock()
+        bus.set_global_engine_async_finish.return_value = True
+        self.service.bus = bus
+        callback = Mock()
+
+        self.service.activate_engine(callback)
+
+        args = bus.set_global_engine_async.call_args.args
+        self.assertEqual(args[:3], ("speaktext", 5_000, None))
+        self.assertIs(args[3], IBusTextService._engine_reactivation_finished)
+        args[3](bus, Mock(), args[4])
+        callback.assert_called_once_with(True)
+
+    def test_reactivate_engine_reports_dbus_errors_to_its_callback(self) -> None:
+        bus = Mock()
+        bus.set_global_engine_async_finish.side_effect = GLib.Error("failed")
+        callback = Mock()
+
+        with self.assertLogs("speaktext.ibus", level="ERROR"):
+            IBusTextService._engine_reactivation_finished(bus, Mock(), callback)
+
+        callback.assert_called_once_with(False)
 
     def _prepare_gesture(self, gesture_key: GestureKey) -> list[str]:
         events: list[str] = []

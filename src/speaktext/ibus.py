@@ -167,6 +167,32 @@ class IBusTextService:
         if not activated:
             LOGGER.error("Could not activate the SpeakText IBus engine")
 
+    def activate_engine(self, callback: Callable[[bool], None]) -> None:
+        """Request that IBus select SpeakText for the current session."""
+        self.bus.set_global_engine_async(
+            ENGINE_NAME,
+            5_000,
+            None,
+            self._engine_reactivation_finished,
+            callback,
+        )
+
+    @staticmethod
+    def _engine_reactivation_finished(
+        bus: IBus.Bus, result: object, user_data: object
+    ) -> None:
+        callback = user_data
+        assert callable(callback)
+        try:
+            activated = bus.set_global_engine_async_finish(result)
+        except GLib.Error as error:
+            LOGGER.error("Could not reactivate the SpeakText IBus engine: %s", error)
+            callback(False)
+            return
+        if not activated:
+            LOGGER.error("Could not reactivate the SpeakText IBus engine")
+        callback(bool(activated))
+
     @staticmethod
     def _component() -> IBus.Component:
         component = IBus.Component(

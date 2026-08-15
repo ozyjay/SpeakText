@@ -57,9 +57,11 @@ in an unattended session.
    no crash or stale recording.
 13. Leave a recording active for two minutes; confirm automatic stop, final
     preview, and that a separate confirmation is required to commit it.
-14. Restart the machine, start SpeakText, and dictate again; confirm the engine
-    is selected automatically and IBus insertion remains available without a
-    Remote Desktop prompt.
+14. Switch to another input source, then open SpeakText and choose
+    **Reactivate** beside **Input source**. Confirm `ibus engine` reports
+    `speaktext` and dictation works again without a Remote Desktop prompt.
+    Restart the machine, start SpeakText, and confirm the engine is selected
+    automatically.
 15. Search `$XDG_CONFIG_HOME`, `$XDG_STATE_HOME`, and `/tmp` for distinctive
     dictated words. Confirm that neither transcripts nor PCM data were written.
 

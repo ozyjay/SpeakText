@@ -136,6 +136,8 @@ keeps dictation running. The window's **Diagnostics → Build** row identifies
 whether the running application is the development checkout or an installed
 build revision. Use **Test dictation** to check a short spoken sample without
 inserting it at the current cursor; clear the visible result when finished.
+If the gesture stops responding because another input source became active,
+choose **Reactivate** beside **Input source** in the SpeakText window.
 
 To remove executables and desktop metadata while retaining the downloaded
 model and settings:
